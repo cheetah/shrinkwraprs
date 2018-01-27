@@ -1,0 +1,15 @@
+[package]
+
+name = "shrinkwraprs"
+version = "0.0.1"
+authors = [ "William Yao <williamyaoh@gmail.com>" ]
+description = "Auto-derive conversion traits"
+
+[dependencies]
+
+syn = "0.12.10"
+quote = "0.4.2"
+
+[lib]
+
+proc-macro = true
