@@ -49,24 +49,26 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
   use syn::Data::{Struct, Enum, Union};
   use syn::Fields::{Named, Unnamed, Unit};
 
-  let DeriveInput { attrs: _attrs, ident, generics, data, .. } = input;
+  let DeriveInput { attrs: _attrs, vis, ident, generics, data, .. } = input;
 
   if !generics.params.is_empty() {
     panic!("currently, shrinkwraprs does not support structs with lifetimes or generics");
   }
 
+  let details = StructDetails { ident: ident, visibility: vis };
+
   match data {
     Struct(DataStruct { fields: Unnamed(FieldsUnnamed { unnamed: fields, .. }), .. }) => {
       let fields: Vec<Field> = fields.into_iter().collect();
-      ShrinkwrapInput::Tuple(validate_tuple_input(ident, fields))
+      ShrinkwrapInput::Tuple(validate_tuple_input(details, fields))
     },
     Struct(DataStruct { fields: Named(FieldsNamed { named: fields, .. }), .. }) => {
       let fields: Vec<Field> = fields.into_iter().collect();
 
       if fields.len() == 1 {
-        ShrinkwrapInput::Single(validate_single_input(ident, fields))
+        ShrinkwrapInput::Single(validate_single_input(details, fields))
       } else if fields.len() > 1 {
-        ShrinkwrapInput::Multi(validate_multi_input(ident, fields))
+        ShrinkwrapInput::Multi(validate_multi_input(details, fields))
       } else {
         panic!("shrinkwraprs needs a struct with at least one field!")
       }
@@ -80,14 +82,20 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
   }
 }
 
-fn validate_tuple_input(ident: syn::Ident, fields: Vec<syn::Field>) -> TupleStruct {
+fn validate_tuple_input(details: StructDetails, fields: Vec<syn::Field>)
+  -> TupleStruct
+{
   unimplemented!()
 }
 
-fn validate_single_input(ident: syn::Ident, fields: Vec<syn::Field>) -> SingleFieldStruct {
+fn validate_single_input(details: StructDetails, fields: Vec<syn::Field>)
+  -> SingleFieldStruct
+{
   unimplemented!()
 }
 
-fn validate_multi_input(ident: syn::Ident, fields: Vec<syn::Field>) -> MultiFieldStruct {
+fn validate_multi_input(details: StructDetails, fields: Vec<syn::Field>)
+  -> MultiFieldStruct
+{
   unimplemented!()
 }
