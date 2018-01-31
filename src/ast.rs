@@ -76,9 +76,21 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
 }
 
 fn validate_tuple(details: StructDetails, fields: Vec<syn::Field>) -> ShrinkwrapInput {
+  if fields.len() == 0 {
+    panic!("shrinkwraprs requires tuple structs to have at least one field");
+  } else if fields.len() > 1 {
+    panic!("currently, shrinkwraprs does not support tuple structs with more than one field");
+  }
+
   unimplemented!()
 }
 
 fn validate_struct(details: StructDetails, fields: Vec<syn::Field>) -> ShrinkwrapInput {
+  if fields.len() == 0 {
+    panic!("shrinkwraprs requires structs to have at least one field");
+  } else if fields.len() > 1 {
+    panic!("currently, shrinkwraprs does not support structs with more than one field");
+  }
+
   unimplemented!()
 }
