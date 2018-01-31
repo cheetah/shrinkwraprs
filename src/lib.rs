@@ -1,3 +1,38 @@
+//! # shrinkwraprs
+//!
+//! Making wrapper types allows us to give more compile-time
+//! guarantees about our code being correct:
+//!
+//! ```ignore
+//! // Now we can't mix up widths and heights; the compiler will yell at us!
+//! struct Width(i64);
+//! struct Height(i64);
+//! ```
+//!
+//! But... they're kind of a pain to work with. If you ever need to get at
+//! that wrapped `i64`, you need to constantly pattern-match back and forth
+//! to wrap and unwrap the values.
+//!
+//! `shrinkwraprs` aims to alleviate this pain by allowing you to derive
+//! implementations of various conversion traits by attaching
+//! `#[derive(Shrinkwrap)]`.
+//!
+//! ## Traits implemented
+//!
+//! For single-field structs, the following traits are derived:
+//!
+//! * `AsRef<InnerType>`
+//! * `AsMut<InnerType>`
+//! * `Borrow<InnerType>`
+//! * `BorrowMut<InnerType>`
+//! * `Deref<Target=InnerType>`
+//! * `DerefMut<Target=InnerType>`
+//! * `From<InnerType> for YourType`
+//! * `From<YourType> for InnerType`
+//!
+//! For multi-field structs, all of these are derived except for
+//! `From<InnerType> for YourType`.
+
 #![recursion_limit="128"]
 
 extern crate proc_macro;
