@@ -25,7 +25,7 @@ pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
     ShrinkwrapInput::Multi(multi) => impl_multi_field_struct(multi)
   };
 
-  format!("{}", tokens)
+  tokens.to_string()
     .parse()
     .unwrap()
 }
