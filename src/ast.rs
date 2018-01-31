@@ -9,25 +9,30 @@ use quote::ToTokens;
 
 use std::borrow::Cow;
 
+pub struct StructDetails {
+  pub ident: syn::Ident,
+  pub visibility: syn::Visibility
+}
+
 /// Represents a 1-tuple struct.
 pub struct TupleStruct {
-  pub ident: syn::Ident,
+  pub details: StructDetails,
   pub inner_type: syn::Type
 }
 
 /// Represents a normal struct with a single named field.
 pub struct SingleFieldStruct {
-  ident: String,
-  inner_field: String,
-  inner_type: String
+  pub details: StructDetails,
+  pub inner_type: syn::Type,
+  pub inner_visibility: syn::Visibility
 }
 
 /// Represents a normal struct with multiple named fields, one of which we
 /// should deref to.
 pub struct MultiFieldStruct {
-  ident: String,
-  inner_field: String,
-  inner_type: String
+  pub details: StructDetails,
+  pub inner_type: syn::Type,
+  pub inner_visibility: syn::Visibility
 }
 
 pub enum ShrinkwrapInput {
@@ -36,37 +41,53 @@ pub enum ShrinkwrapInput {
   Multi(MultiFieldStruct)
 }
 
-pub fn validate_derive_input<'a>(input: syn::DeriveInput)
-  -> Result<ShrinkwrapInput, Cow<'a, str>>
-{
-  let syn::DeriveInput { attrs, ident, generics, data, .. } = input;
+pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
+  // Note that `unwrap()`s and `panic()`s are totally fine here, since we're
+  // inside a procedural macro; panics happen at compile time
 
-  let generics: Vec<syn::TypeParam> = generics.params.into_iter()
-    .filter_map(|generic| match generic {
-      syn::GenericParam::Type(param) => Some(param),
-      _ => None
-    })
-    .collect();
+  use syn::{DeriveInput, DataStruct, FieldsUnnamed, FieldsNamed, Field};
+  use syn::Data::{Struct, Enum, Union};
+  use syn::Fields::{Named, Unnamed, Unit};
 
-  if !generics.is_empty() {
-    return Err("right now, shrinkwraprs does not support structs with generic parameters.".into());
+  let DeriveInput { attrs: _attrs, ident, generics, data, .. } = input;
+
+  if !generics.params.is_empty() {
+    panic!("currently, shrinkwraprs does not support structs with lifetimes or generics");
   }
 
   match data {
-    syn::Data::Struct(syn::DataStruct { fields: syn::Fields::Unnamed(fields), .. }) => {
-      let mut fields: Vec<syn::Field> = fields.unnamed.into_iter()
-        .collect();
-      if fields.len() != 1 {
-        return Err("shrinkwraprs does not support tuple structs with more than one field".into());
-      }
-
-      let first = fields.pop()
-        .unwrap();
-
-      let inner_type = first.ty;
-
-      Ok(ShrinkwrapInput::Tuple(TupleStruct { ident: ident, inner_type: inner_type }))
+    Struct(DataStruct { fields: Unnamed(FieldsUnnamed { unnamed: fields, .. }), .. }) => {
+      let fields: Vec<Field> = fields.into_iter().collect();
+      ShrinkwrapInput::Tuple(validate_tuple_input(ident, fields))
     },
-    _ => return Err("unsupported data structure type".into())
+    Struct(DataStruct { fields: Named(FieldsNamed { named: fields, .. }), .. }) => {
+      let fields: Vec<Field> = fields.into_iter().collect();
+
+      if fields.len() == 1 {
+        ShrinkwrapInput::Single(validate_single_input(ident, fields))
+      } else if fields.len() > 1 {
+        ShrinkwrapInput::Multi(validate_multi_input(ident, fields))
+      } else {
+        panic!("shrinkwraprs needs a struct with at least one field!")
+      }
+    },
+    Struct(..) =>
+      panic!("shrinkwraprs needs a struct with at least one field!"),
+    Enum(..) =>
+      panic!("shrinkwraprs does not support enums"),
+    Union(..) =>
+      panic!("shrinkwraprs does not support C-style unions")
   }
+}
+
+fn validate_tuple_input(ident: syn::Ident, fields: Vec<syn::Field>) -> TupleStruct {
+  unimplemented!()
+}
+
+fn validate_single_input(ident: syn::Ident, fields: Vec<syn::Field>) -> SingleFieldStruct {
+  unimplemented!()
+}
+
+fn validate_multi_input(ident: syn::Ident, fields: Vec<syn::Field>) -> MultiFieldStruct {
+  unimplemented!()
 }
