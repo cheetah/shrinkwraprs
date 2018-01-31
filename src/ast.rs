@@ -60,18 +60,11 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
   match data {
     Struct(DataStruct { fields: Unnamed(FieldsUnnamed { unnamed: fields, .. }), .. }) => {
       let fields: Vec<Field> = fields.into_iter().collect();
-      ShrinkwrapInput::Tuple(validate_tuple_input(details, fields))
+      validate_tuple(details, fields)
     },
     Struct(DataStruct { fields: Named(FieldsNamed { named: fields, .. }), .. }) => {
       let fields: Vec<Field> = fields.into_iter().collect();
-
-      if fields.len() == 1 {
-        ShrinkwrapInput::Single(validate_single_input(details, fields))
-      } else if fields.len() > 1 {
-        ShrinkwrapInput::Multi(validate_multi_input(details, fields))
-      } else {
-        panic!("shrinkwraprs needs a struct with at least one field!")
-      }
+      validate_struct(details, fields)
     },
     Struct(..) =>
       panic!("shrinkwraprs needs a struct with at least one field!"),
@@ -82,20 +75,10 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
   }
 }
 
-fn validate_tuple_input(details: StructDetails, fields: Vec<syn::Field>)
-  -> TupleStruct
-{
+fn validate_tuple(details: StructDetails, fields: Vec<syn::Field>) -> ShrinkwrapInput {
   unimplemented!()
 }
 
-fn validate_single_input(details: StructDetails, fields: Vec<syn::Field>)
-  -> SingleFieldStruct
-{
-  unimplemented!()
-}
-
-fn validate_multi_input(details: StructDetails, fields: Vec<syn::Field>)
-  -> MultiFieldStruct
-{
+fn validate_struct(details: StructDetails, fields: Vec<syn::Field>) -> ShrinkwrapInput {
   unimplemented!()
 }
