@@ -23,6 +23,7 @@ pub struct TupleStruct {
 /// Represents a normal struct with a single named field.
 pub struct SingleFieldStruct {
   pub details: StructDetails,
+  pub inner_field: syn::Ident,
   pub inner_type: syn::Type,
   pub inner_visibility: syn::Visibility
 }
@@ -31,6 +32,7 @@ pub struct SingleFieldStruct {
 /// should deref to.
 pub struct MultiFieldStruct {
   pub details: StructDetails,
+  pub inner_field: syn::Ident,
   pub inner_type: syn::Type,
   pub inner_visibility: syn::Visibility
 }
