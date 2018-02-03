@@ -70,6 +70,7 @@ pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
 // visibility of the struct itself, since we know that the tuple's inner field
 // will always have the same visibility as the struct.
 
+#[allow(unused_variables)]
 fn impl_tuple(input: ast::Tuple) -> quote::Tokens {
   let ast::Tuple { details, inner_type } = input;
   let ast::StructDetails { ident, visibility } = details;
@@ -88,12 +89,6 @@ fn impl_tuple(input: ast::Tuple) -> quote::Tokens {
       use std::convert::{From, AsRef, AsMut};
       use std::borrow::{Borrow, BorrowMut};
       use std::ops::{Deref, DerefMut};
-
-      impl #ident {
-        #visibility fn new(input: #inner_type) -> Self {
-          #ident(input)
-        }
-      }
 
       impl Deref for #ident {
         type Target = #inner_type;
@@ -131,40 +126,185 @@ fn impl_tuple(input: ast::Tuple) -> quote::Tokens {
           &mut self.0
         }
       }
+    };
+  }
+}
 
-      impl From<#inner_type> for #ident {
-        fn from(input: #inner_type) -> Self {
-          #ident(input)
+#[allow(unused_variables)]
+fn impl_nary_tuple(input: ast::NaryTuple) -> quote::Tokens {
+  let ast::NaryTuple { details, inner_field_index, inner_type } = input;
+  let ast::StructDetails { ident, visibility } = details;
+
+  let dummy_const = syn::Ident::new(
+    &format!("__IMPL_SHRINKWRAP_FOR_{}", ident),
+    proc_macro2::Span::def_site()
+  );
+
+  quote! {
+    #[allow(non_upper_case_globals)]
+    #[allow(unused_imports)]
+    const #dummy_const: () = {
+      use std::convert::{From, AsRef, AsMut};
+      use std::borrow::{Borrow, BorrowMut};
+      use std::ops::{Deref, DerefMut};
+
+      impl Deref for #ident {
+        type Target = #inner_type;
+        fn deref(&self) -> &#inner_type {
+          &self.#inner_field_index
         }
       }
 
-      impl From<#ident> for #inner_type {
-        fn from(input: #ident) -> #inner_type {
-          input.0
+      impl DerefMut for #ident {
+        fn deref_mut(&mut self) -> &mut #inner_type {
+          &mut self.#inner_field_index
+        }
+      }
+
+      impl Borrow<#inner_type> for #ident {
+        fn borrow(&self) -> &#inner_type {
+          &self.#inner_field_index
+        }
+      }
+
+      impl BorrowMut<#inner_type> for #ident {
+        fn borrow_mut(&mut self) -> &mut #inner_type {
+          &mut self.#inner_field_index
+        }
+      }
+
+      impl AsRef<#inner_type> for #ident {
+        fn as_ref(&self) -> &#inner_type {
+          &self.#inner_field_index
+        }
+      }
+
+      impl AsMut<#inner_type> for #ident {
+        fn as_mut(&mut self) -> &mut #inner_type {
+          &mut self.#inner_field_index
         }
       }
     };
   }
 }
 
-fn impl_nary_tuple(input: ast::NaryTuple) -> quote::Tokens {
-  unimplemented!()
-}
-
 // For now, we don't care about introspecting on the field visibility to figure
 // out potential correctness violations.
 
+#[allow(unused_variables)]
 fn impl_single(input: ast::Single) -> quote::Tokens {
-  use syn::Visibility::{Public, Crate, Restricted};
-
   let ast::Single { details, inner_field, inner_type, inner_visibility } = input;
   let ast::StructDetails { ident, visibility } = details;
 
-  quote! {
+  let dummy_const = syn::Ident::new(
+    &format!("__IMPL_SHRINKWRAP_FOR_{}", ident),
+    proc_macro2::Span::def_site()
+  );
 
+  quote! {
+    #[allow(non_upper_case_globals)]
+    #[allow(unused_imports)]
+    const #dummy_const: () = {
+      use std::convert::{From, AsRef, AsMut};
+      use std::borrow::{Borrow, BorrowMut};
+      use std::ops::{Deref, DerefMut};
+
+      impl Deref for #ident {
+        type Target = #inner_type;
+        fn deref(&self) -> &#inner_type {
+          &self.#inner_field
+        }
+      }
+
+      impl DerefMut for #ident {
+        fn deref_mut(&mut self) -> &mut #inner_type {
+          fn deref_mut(&mut self) -> &#inner_type {
+            &mut self.#inner_field
+          }
+        }
+      }
+
+      impl Borrow<#inner_type> for #ident {
+        fn borrow(&self) -> &#inner_type {
+          &self.#inner_field
+        }
+      }
+
+      impl BorrowMut<#inner_type> for #ident {
+        fn borrow_mut(&mut self) -> &mut #inner_type {
+          &mut self.#inner_field
+        }
+p      }
+
+      impl AsRef<#inner_type> for #ident {
+        fn as_ref(&self) -> &#inner_type {
+          &self.#inner_field
+        }
+      }
+
+      impl AsMut<#inner_type> for #ident {
+        fn as_mut(&mut self) -> &mut #inner_type {
+          &mut self.#inner_field
+        }
+      }
+    };
   }
 }
 
+#[allow(unused_variables)]
 fn impl_multi(input: ast::Multi) -> quote::Tokens {
-  unimplemented!()
+  let ast::Multi { details, inner_field, inner_type, inner_visibility } = input;
+  let ast::StructDetails { ident, visibility } = details;
+
+  let dummy_const = syn::Ident::new(
+    &format!("__IMPL_SHRINKWRAP_FOR_{}", ident),
+    proc_macro2::Span::def_site()
+  );
+
+  quote! {
+    #[allow(non_upper_case_globals)]
+    #[allow(unused_imports)]
+    const #dummy_const: () = {
+      use std::convert::{From, AsRef, AsMut};
+      use std::borrow::{Borrow, BorrowMut};
+      use std::ops::{Deref, DerefMut};
+
+      impl Deref for #ident {
+        type Target = #inner_type;
+        fn deref(&self) -> &#inner_type {
+          &self.#inner_field
+        }
+      }
+
+      impl DerefMut for #ident {
+        fn deref_mut(&mut self) -> &mut #inner_type {
+          &mut self.#inner_field
+        }
+      }
+
+      impl Borrow<#inner_type> for #ident {
+        fn borrow(&self) -> &#inner_type {
+          &self.#inner_field
+        }
+      }
+
+      impl BorrowMut<#inner_type> for #ident {
+        fn borrow_mut(&mut self) -> &mut #inner_type {
+          &mut self.#inner_field
+        }
+      }
+
+      impl AsRef<#inner_type> for #ident {
+        fn as_ref(&self) -> &#inner_type {
+          &self.#inner_field
+        }
+      }
+
+      impl AsMut<#inner_type> for #ident {
+        fn as_mut(&mut self) -> &mut #inner_type {
+          &mut self.#inner_field
+        }
+      }
+    };
+  }
 }
