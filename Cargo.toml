@@ -14,3 +14,9 @@ itertools = "0.7.6"
 [lib]
 
 proc-macro = true
+
+[features]
+
+# Forces crate to compile cleanly. Mostly used for CI; build must pass with this
+# feature to be merged in.
+strict = []
