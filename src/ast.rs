@@ -110,6 +110,34 @@ fn is_marked(field: &syn::Field) -> bool {
   })
 }
 
+/// Only a single field, out of all a struct's fields, can be marked as
+/// the main field that we deref to. So let's find that field.
+fn find_marked_field(fields: Fields) -> (syn::Field, Fields) {
+  let (marked, unmarked) = fields.into_iter()
+    .partition::<Fields, _>(|field| is_marked(field));
+  let marked_len = marked.len();
+  let single: Option<(syn::Field,)> = marked.into_iter()
+    .collect_tuple();
+
+  match (single, unmarked.len()) {
+    (Some(field), _) => (field.0, unmarked),
+    (None, 1) => {
+      let single: (syn::Field,) = unmarked.into_iter()
+        .collect_tuple()
+        .unwrap();
+
+      (single.0, vec![])
+    },
+    _ => if marked_len == 0 {
+      panic!("halp! shrinkwraprs doesn't know which field you want this struct to convert to.
+Did you forget to mark a field with #[shrinkwrap(main_field)]?");
+    } else {
+      panic!("halp! shrinkwraprs doesn't know which field you want this struct to convert to.
+Did you accidentally mark more than one field with #[shrinkwrap(main_field)]?");
+    }
+  }
+}
+
 fn validate_tuple(details: StructDetails, fields: Vec<syn::Field>) -> ShrinkwrapInput {
   if fields.len() == 0 {
     panic!("shrinkwraprs requires tuple structs to have at least one field");
