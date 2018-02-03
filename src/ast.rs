@@ -150,3 +150,63 @@ fn validate_struct(details: StructDetails, fields: Vec<syn::Field>) -> Shrinkwra
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use syn;
+  use itertools::Itertools;
+
+  use super::*;
+
+  #[test]
+  fn test_field_attribute_found() {
+    let input = r"
+      struct Foo {
+        field1: u32,
+        #[shrinkwrap(main_field)]
+        field2: u32
+      }
+    ";
+
+    let strct: syn::DeriveInput = syn::parse_str(input)
+      .unwrap();
+
+    match strct.data {
+      syn::Data::Struct(syn::DataStruct { fields, .. }) => {
+        let marked = fields.into_iter()
+          .filter(|field| is_marked(field));
+        let field: (&syn::Field,) = marked
+          .collect_tuple()
+          .unwrap();
+        let ident = field.0.ident
+          .unwrap();
+
+        assert_eq!(&ident, "field2");
+      },
+      _ => panic!()
+    }
+  }
+
+  #[test]
+  fn test_field_attribute_not_found() {
+    let input = r"
+      struct Foo {
+        field1: u32,
+        field2: u32
+      }
+    ";
+
+    let strct: syn::DeriveInput = syn::parse_str(input)
+      .unwrap();
+
+    match strct.data {
+      syn::Data::Struct(syn::DataStruct { fields, .. }) => {
+        let marked = fields.into_iter()
+          .filter(|field| is_marked(field))
+          .collect_vec();
+        assert_eq!(marked.len(), 0);
+      },
+      _ => panic!()
+    }
+  }
+}
