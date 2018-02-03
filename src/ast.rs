@@ -7,7 +7,11 @@
 use syn;
 use quote::ToTokens;
 
+use itertools::Itertools;
+
 use std::borrow::Cow;
+
+type Fields = Vec<syn::Field>;
 
 pub struct StructDetails {
   pub ident: syn::Ident,
@@ -61,11 +65,11 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
 
   match data {
     Struct(DataStruct { fields: Unnamed(FieldsUnnamed { unnamed: fields, .. }), .. }) => {
-      let fields: Vec<Field> = fields.into_iter().collect();
+      let fields = fields.into_iter().collect_vec();
       validate_tuple(details, fields)
     },
     Struct(DataStruct { fields: Named(FieldsNamed { named: fields, .. }), .. }) => {
-      let fields: Vec<Field> = fields.into_iter().collect();
+      let fields = fields.into_iter().collect_vec();
       validate_struct(details, fields)
     },
     Struct(..) =>
