@@ -19,13 +19,21 @@ pub struct StructDetails {
 }
 
 /// Represents a 1-tuple struct.
-pub struct TupleStruct {
+pub struct Tuple {
   pub details: StructDetails,
   pub inner_type: syn::Type
 }
 
+/// Represents an n-tuple struct, with one of the elements designated
+/// as the one we should deref to.
+pub struct NaryTuple {
+  pub details: StructDetails,
+  pub inner_field_index: u32,
+  pub inner_type: syn::Type
+}
+
 /// Represents a normal struct with a single named field.
-pub struct SingleFieldStruct {
+pub struct Single {
   pub details: StructDetails,
   pub inner_field: syn::Ident,
   pub inner_type: syn::Type,
@@ -34,7 +42,7 @@ pub struct SingleFieldStruct {
 
 /// Represents a normal struct with multiple named fields, one of which we
 /// should deref to.
-pub struct MultiFieldStruct {
+pub struct Multi {
   pub details: StructDetails,
   pub inner_field: syn::Ident,
   pub inner_type: syn::Type,
@@ -42,9 +50,10 @@ pub struct MultiFieldStruct {
 }
 
 pub enum ShrinkwrapInput {
-  Tuple(TupleStruct),
-  Single(SingleFieldStruct),
-  Multi(MultiFieldStruct)
+  Tuple(Tuple),
+  NaryTuple(NaryTuple),
+  Single(Single),
+  Multi(Multi)
 }
 
 pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
@@ -90,7 +99,7 @@ fn validate_tuple(details: StructDetails, fields: Vec<syn::Field>) -> Shrinkwrap
 
   let mut fields = fields;
   if let Some(syn::Field { ty, .. }) = fields.pop() {
-    ShrinkwrapInput::Tuple(TupleStruct {
+    ShrinkwrapInput::Tuple(Tuple {
       details: details,
       inner_type: ty
     })
@@ -107,7 +116,7 @@ fn validate_struct(details: StructDetails, fields: Vec<syn::Field>) -> Shrinkwra
   } else {
     let mut fields = fields;
     if let Some(syn::Field { vis, ty, ident: Some(ident), .. }) = fields.pop() {
-      ShrinkwrapInput::Single(SingleFieldStruct {
+      ShrinkwrapInput::Single(Single {
         details: details,
         inner_field: ident,
         inner_type: ty,

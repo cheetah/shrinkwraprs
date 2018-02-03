@@ -53,9 +53,10 @@ pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
   let input = validate_derive_input(input);
 
   let tokens = match input {
-    ShrinkwrapInput::Tuple(tuple) => impl_tuple_struct(tuple),
-    ShrinkwrapInput::Single(single) => impl_single_field_struct(single),
-    ShrinkwrapInput::Multi(multi) => impl_multi_field_struct(multi)
+    ShrinkwrapInput::Tuple(tuple) => impl_tuple(tuple),
+    ShrinkwrapInput::NaryTuple(nary_tuple) => impl_nary_tuple(nary_tuple),
+    ShrinkwrapInput::Single(single) => impl_single(single),
+    ShrinkwrapInput::Multi(multi) => impl_multi(multi)
   };
 
   tokens.to_string()
@@ -63,14 +64,18 @@ pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
     .unwrap()
 }
 
-fn impl_tuple_struct(input: ast::TupleStruct) -> quote::Tokens {
+fn impl_tuple(input: ast::Tuple) -> quote::Tokens {
   unimplemented!()
 }
 
-fn impl_single_field_struct(input: ast::SingleFieldStruct) -> quote::Tokens {
+fn impl_nary_tuple(input: ast::NaryTuple) -> quote::Tokens {
   unimplemented!()
 }
 
-fn impl_multi_field_struct(input: ast::MultiFieldStruct) -> quote::Tokens {
+fn impl_single(input: ast::Single) -> quote::Tokens {
+  unimplemented!()
+}
+
+fn impl_multi(input: ast::Multi) -> quote::Tokens {
   unimplemented!()
 }
