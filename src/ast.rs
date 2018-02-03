@@ -90,6 +90,29 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
   }
 }
 
+fn is_marked(field: &syn::Field) -> bool {
+  use syn::{Meta, MetaList, NestedMeta};
+
+  let mut attrs = field.attrs.iter();
+
+  attrs.any(|attr| {
+    let meta = attr.interpret_meta();
+
+    if let Some(Meta::List(MetaList { ident, nested, ..})) = meta {
+      let nested_metas: Option<(NestedMeta,)> = nested.into_iter()
+        .collect_tuple();
+      let is_main_field = match nested_metas {
+        Some((NestedMeta::Meta(Meta::Word(word)),)) => &word == "main_field",
+        _ => false
+      };
+
+      &ident == "shrinkwrap" && is_main_field
+    } else {
+      false
+    }
+  })
+}
+
 fn validate_tuple(details: StructDetails, fields: Vec<syn::Field>) -> ShrinkwrapInput {
   if fields.len() == 0 {
     panic!("shrinkwraprs requires tuple structs to have at least one field");
