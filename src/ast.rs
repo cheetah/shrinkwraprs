@@ -152,14 +152,19 @@ fn validate_tuple(details: StructDetails, fields: Vec<syn::Field>) -> Shrinkwrap
     panic!("shrinkwraprs requires tuple structs to have at least one field");
   }
 
-  let mut fields = fields;
-  if let Some(syn::Field { ty, .. }) = fields.pop() {
+  let (marked, unmarked) = find_marked_field(fields);
+
+  if unmarked.len() == 0 {
     ShrinkwrapInput::Tuple(Tuple {
       details: details,
-      inner_type: ty
+      inner_type: marked.1.ty
     })
   } else {
-    unreachable!()
+    ShrinkwrapInput::NaryTuple(NaryTuple {
+      details: details,
+      inner_field_index: marked.0,
+      inner_type: marked.1.ty
+    })
   }
 }
 
