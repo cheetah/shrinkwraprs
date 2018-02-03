@@ -147,7 +147,7 @@ Did you accidentally mark more than one field with #[shrinkwrap(main_field)]?");
   }
 }
 
-fn validate_tuple(details: StructDetails, fields: Vec<syn::Field>) -> ShrinkwrapInput {
+fn validate_tuple(details: StructDetails, fields: Fields) -> ShrinkwrapInput {
   if fields.len() == 0 {
     panic!("shrinkwraprs requires tuple structs to have at least one field");
   }
@@ -168,7 +168,7 @@ fn validate_tuple(details: StructDetails, fields: Vec<syn::Field>) -> Shrinkwrap
   }
 }
 
-fn validate_struct(details: StructDetails, fields: Vec<syn::Field>) -> ShrinkwrapInput {
+fn validate_struct(details: StructDetails, fields: Fields) -> ShrinkwrapInput {
   if fields.len() == 0 {
     panic!("shrinkwraprs requires structs to have at least one field");
   }
