@@ -5,11 +5,8 @@
 //! specific to our crate if it's valid.
 
 use syn;
-use quote::ToTokens;
 
 use itertools::Itertools;
-
-use std::borrow::Cow;
 
 type Fields = Vec<syn::Field>;
 
