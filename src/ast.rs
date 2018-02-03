@@ -112,17 +112,26 @@ fn is_marked(field: &syn::Field) -> bool {
 
 /// Only a single field, out of all a struct's fields, can be marked as
 /// the main field that we deref to. So let's find that field.
-fn find_marked_field(fields: Fields) -> (syn::Field, Fields) {
+/// We also return the 0-based number of the marked field.
+fn find_marked_field(fields: Fields) -> ((u32, syn::Field), Fields) {
   let (marked, unmarked) = fields.into_iter()
-    .partition::<Fields, _>(|field| is_marked(field));
+    .enumerate()
+    .map(|(i, field)| (i as u32, field))
+    .partition::<Vec<_>, _>(|&(i, ref field)| is_marked(field));
   let marked_len = marked.len();
-  let single: Option<(syn::Field,)> = marked.into_iter()
+  let single: Option<(_,)> = marked.into_iter()
     .collect_tuple();
 
   match (single, unmarked.len()) {
-    (Some(field), _) => (field.0, unmarked),
+    (Some((field,)), _) => {
+      let unmarked = unmarked.into_iter()
+        .map(|(_, field)| field)
+        .collect_vec();
+
+      (field, unmarked)
+    }
     (None, 1) => {
-      let single: (syn::Field,) = unmarked.into_iter()
+      let single: (_,) = unmarked.into_iter()
         .collect_tuple()
         .unwrap();
 
@@ -141,8 +150,6 @@ Did you accidentally mark more than one field with #[shrinkwrap(main_field)]?");
 fn validate_tuple(details: StructDetails, fields: Vec<syn::Field>) -> ShrinkwrapInput {
   if fields.len() == 0 {
     panic!("shrinkwraprs requires tuple structs to have at least one field");
-  } else if fields.len() > 1 {
-    panic!("currently, shrinkwraprs does not support tuple structs with more than one field");
   }
 
   let mut fields = fields;
