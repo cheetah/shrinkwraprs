@@ -171,20 +171,28 @@ fn validate_tuple(details: StructDetails, fields: Vec<syn::Field>) -> Shrinkwrap
 fn validate_struct(details: StructDetails, fields: Vec<syn::Field>) -> ShrinkwrapInput {
   if fields.len() == 0 {
     panic!("shrinkwraprs requires structs to have at least one field");
-  } else if fields.len() > 1 {
-    panic!("currently, shrinkwraprs does not support structs with more than one field");
+  }
+
+  let (marked, unmarked) = find_marked_field(fields);
+  let ident = marked.1.ident
+    .unwrap();
+  let ty = marked.1.ty;
+  let vis = marked.1.vis;
+
+  if unmarked.len() == 0 {
+    ShrinkwrapInput::Single(Single {
+      details: details,
+      inner_field: ident,
+      inner_type: ty,
+      inner_visibility: vis
+    })
   } else {
-    let mut fields = fields;
-    if let Some(syn::Field { vis, ty, ident: Some(ident), .. }) = fields.pop() {
-      ShrinkwrapInput::Single(Single {
-        details: details,
-        inner_field: ident,
-        inner_type: ty,
-        inner_visibility: vis
-      })
-    } else {
-      unreachable!()
-    }
+    ShrinkwrapInput::Multi(Multi {
+      details: details,
+      inner_field: ident,
+      inner_type: ty,
+      inner_visibility: vis
+    })
   }
 }
 
