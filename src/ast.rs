@@ -57,9 +57,9 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
   // Note that `unwrap()`s and `panic()`s are totally fine here, since we're
   // inside a procedural macro; panics happen at compile time
 
-  use syn::{DeriveInput, DataStruct, FieldsUnnamed, FieldsNamed, Field};
+  use syn::{DeriveInput, DataStruct, FieldsUnnamed, FieldsNamed};
   use syn::Data::{Struct, Enum, Union};
-  use syn::Fields::{Named, Unnamed, Unit};
+  use syn::Fields::{Named, Unnamed};
 
   let DeriveInput { attrs: _attrs, vis, ident, generics, data, .. } = input;
 
@@ -117,7 +117,7 @@ fn find_marked_field(fields: Fields) -> ((u32, syn::Field), Fields) {
   let (marked, unmarked) = fields.into_iter()
     .enumerate()
     .map(|(i, field)| (i as u32, field))
-    .partition::<Vec<_>, _>(|&(i, ref field)| is_marked(field));
+    .partition::<Vec<_>, _>(|&(_, ref field)| is_marked(field));
   let marked_len = marked.len();
   let single: Option<(_,)> = marked.into_iter()
     .collect_tuple();
