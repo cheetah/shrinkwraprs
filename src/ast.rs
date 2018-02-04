@@ -5,9 +5,10 @@
 //! specific to our crate if it's valid.
 
 use syn;
-use quote::ToTokens;
 
-use std::borrow::Cow;
+use itertools::Itertools;
+
+type Fields = Vec<syn::Field>;
 
 pub struct StructDetails {
   pub ident: syn::Ident,
@@ -15,13 +16,21 @@ pub struct StructDetails {
 }
 
 /// Represents a 1-tuple struct.
-pub struct TupleStruct {
+pub struct Tuple {
   pub details: StructDetails,
   pub inner_type: syn::Type
 }
 
+/// Represents an n-tuple struct, with one of the elements designated
+/// as the one we should deref to.
+pub struct NaryTuple {
+  pub details: StructDetails,
+  pub inner_field_index: u32,
+  pub inner_type: syn::Type
+}
+
 /// Represents a normal struct with a single named field.
-pub struct SingleFieldStruct {
+pub struct Single {
   pub details: StructDetails,
   pub inner_field: syn::Ident,
   pub inner_type: syn::Type,
@@ -30,7 +39,7 @@ pub struct SingleFieldStruct {
 
 /// Represents a normal struct with multiple named fields, one of which we
 /// should deref to.
-pub struct MultiFieldStruct {
+pub struct Multi {
   pub details: StructDetails,
   pub inner_field: syn::Ident,
   pub inner_type: syn::Type,
@@ -38,9 +47,10 @@ pub struct MultiFieldStruct {
 }
 
 pub enum ShrinkwrapInput {
-  Tuple(TupleStruct),
-  Single(SingleFieldStruct),
-  Multi(MultiFieldStruct)
+  Tuple(Tuple),
+  NaryTuple(NaryTuple),
+  Single(Single),
+  Multi(Multi)
 }
 
 pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
@@ -61,11 +71,11 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
 
   match data {
     Struct(DataStruct { fields: Unnamed(FieldsUnnamed { unnamed: fields, .. }), .. }) => {
-      let fields: Vec<Field> = fields.into_iter().collect();
+      let fields = fields.into_iter().collect_vec();
       validate_tuple(details, fields)
     },
     Struct(DataStruct { fields: Named(FieldsNamed { named: fields, .. }), .. }) => {
-      let fields: Vec<Field> = fields.into_iter().collect();
+      let fields = fields.into_iter().collect_vec();
       validate_struct(details, fields)
     },
     Struct(..) =>
@@ -77,40 +87,171 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
   }
 }
 
-fn validate_tuple(details: StructDetails, fields: Vec<syn::Field>) -> ShrinkwrapInput {
-  if fields.len() == 0 {
-    panic!("shrinkwraprs requires tuple structs to have at least one field");
-  } else if fields.len() > 1 {
-    panic!("currently, shrinkwraprs does not support tuple structs with more than one field");
-  }
+fn is_marked(field: &syn::Field) -> bool {
+  use syn::{Meta, MetaList, NestedMeta};
 
-  let mut fields = fields;
-  if let Some(syn::Field { ty, .. }) = fields.pop() {
-    ShrinkwrapInput::Tuple(TupleStruct {
-      details: details,
-      inner_type: ty
-    })
-  } else {
-    unreachable!()
+  let mut attrs = field.attrs.iter();
+
+  attrs.any(|attr| {
+    let meta = attr.interpret_meta();
+
+    if let Some(Meta::List(MetaList { ident, nested, ..})) = meta {
+      let nested_metas: Option<(NestedMeta,)> = nested.into_iter()
+        .collect_tuple();
+      let is_main_field = match nested_metas {
+        Some((NestedMeta::Meta(Meta::Word(word)),)) => &word == "main_field",
+        _ => false
+      };
+
+      &ident == "shrinkwrap" && is_main_field
+    } else {
+      false
+    }
+  })
+}
+
+/// Only a single field, out of all a struct's fields, can be marked as
+/// the main field that we deref to. So let's find that field.
+/// We also return the 0-based number of the marked field.
+fn find_marked_field(fields: Fields) -> ((u32, syn::Field), Fields) {
+  let (marked, unmarked) = fields.into_iter()
+    .enumerate()
+    .map(|(i, field)| (i as u32, field))
+    .partition::<Vec<_>, _>(|&(i, ref field)| is_marked(field));
+  let marked_len = marked.len();
+  let single: Option<(_,)> = marked.into_iter()
+    .collect_tuple();
+
+  match (single, unmarked.len()) {
+    (Some((field,)), _) => {
+      let unmarked = unmarked.into_iter()
+        .map(|(_, field)| field)
+        .collect_vec();
+
+      (field, unmarked)
+    }
+    (None, 1) => {
+      let single: (_,) = unmarked.into_iter()
+        .collect_tuple()
+        .unwrap();
+
+      (single.0, vec![])
+    },
+    _ => if marked_len == 0 {
+      panic!("halp! shrinkwraprs doesn't know which field you want this struct to convert to.
+Did you forget to mark a field with #[shrinkwrap(main_field)]?");
+    } else {
+      panic!("halp! shrinkwraprs doesn't know which field you want this struct to convert to.
+Did you accidentally mark more than one field with #[shrinkwrap(main_field)]?");
+    }
   }
 }
 
-fn validate_struct(details: StructDetails, fields: Vec<syn::Field>) -> ShrinkwrapInput {
+fn validate_tuple(details: StructDetails, fields: Fields) -> ShrinkwrapInput {
+  if fields.len() == 0 {
+    panic!("shrinkwraprs requires tuple structs to have at least one field");
+  }
+
+  let (marked, unmarked) = find_marked_field(fields);
+
+  if unmarked.len() == 0 {
+    ShrinkwrapInput::Tuple(Tuple {
+      details: details,
+      inner_type: marked.1.ty
+    })
+  } else {
+    ShrinkwrapInput::NaryTuple(NaryTuple {
+      details: details,
+      inner_field_index: marked.0,
+      inner_type: marked.1.ty
+    })
+  }
+}
+
+fn validate_struct(details: StructDetails, fields: Fields) -> ShrinkwrapInput {
   if fields.len() == 0 {
     panic!("shrinkwraprs requires structs to have at least one field");
-  } else if fields.len() > 1 {
-    panic!("currently, shrinkwraprs does not support structs with more than one field");
+  }
+
+  let (marked, unmarked) = find_marked_field(fields);
+  let ident = marked.1.ident
+    .unwrap();
+  let ty = marked.1.ty;
+  let vis = marked.1.vis;
+
+  if unmarked.len() == 0 {
+    ShrinkwrapInput::Single(Single {
+      details: details,
+      inner_field: ident,
+      inner_type: ty,
+      inner_visibility: vis
+    })
   } else {
-    let mut fields = fields;
-    if let Some(syn::Field { vis, ty, ident: Some(ident), .. }) = fields.pop() {
-      ShrinkwrapInput::Single(SingleFieldStruct {
-        details: details,
-        inner_field: ident,
-        inner_type: ty,
-        inner_visibility: vis
-      })
-    } else {
-      unreachable!()
+    ShrinkwrapInput::Multi(Multi {
+      details: details,
+      inner_field: ident,
+      inner_type: ty,
+      inner_visibility: vis
+    })
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use syn;
+  use itertools::Itertools;
+
+  use super::*;
+
+  #[test]
+  fn test_field_attribute_found() {
+    let input = r"
+      struct Foo {
+        field1: u32,
+        #[shrinkwrap(main_field)]
+        field2: u32
+      }
+    ";
+
+    let strct: syn::DeriveInput = syn::parse_str(input)
+      .unwrap();
+
+    match strct.data {
+      syn::Data::Struct(syn::DataStruct { fields, .. }) => {
+        let marked = fields.into_iter()
+          .filter(|field| is_marked(field));
+        let field: (&syn::Field,) = marked
+          .collect_tuple()
+          .unwrap();
+        let ident = field.0.ident
+          .unwrap();
+
+        assert_eq!(&ident, "field2");
+      },
+      _ => panic!()
+    }
+  }
+
+  #[test]
+  fn test_field_attribute_not_found() {
+    let input = r"
+      struct Foo {
+        field1: u32,
+        field2: u32
+      }
+    ";
+
+    let strct: syn::DeriveInput = syn::parse_str(input)
+      .unwrap();
+
+    match strct.data {
+      syn::Data::Struct(syn::DataStruct { fields, .. }) => {
+        let marked = fields.into_iter()
+          .filter(|field| is_marked(field))
+          .collect_vec();
+        assert_eq!(marked.len(), 0);
+      },
+      _ => panic!()
     }
   }
 }
