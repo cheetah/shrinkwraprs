@@ -5,7 +5,7 @@ version = "0.0.1"
 authors = [ "William Yao <williamyaoh@gmail.com>" ]
 description = "Auto-derive for Rust conversion traits -- make working with newtypes a breeze"
 documentation = "https://docs.rs/shrinkwraprs"
-repository = "https://gitlab.com/williamyaoh/shrinkwraps"
+repository = "https://gitlab.com/williamyaoh/shrinkwraprs"
 readme = "README.md"
 license = "BSD-3-Clause"
 
