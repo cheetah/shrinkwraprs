@@ -34,6 +34,7 @@
 //! For multi-field structs, all of these are derived except for
 //! `From<InnerType> for YourType` and the `new()` constructor.
 
+#![cfg_attr(feature = "strict", deny(warnings))]
 #![recursion_limit="128"]
 
 extern crate proc_macro;
