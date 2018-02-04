@@ -1,5 +1,7 @@
 # shrinkwraprs
 
+[![pipeline status](https://gitlab.com/williamyaoh/shrinkwraprs/badges/master/pipeline.svg)](https://gitlab.com/williamyaoh/shrinkwraprs/commits/master)
+
 Making wrapper types allows us to give more compile-time
 guarantees about our code being correct:
 
