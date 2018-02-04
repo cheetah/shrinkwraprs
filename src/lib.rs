@@ -55,6 +55,11 @@
 // Note: correctness concerns arise from implementing the `Mut` traits
 // willy-nilly. Probably want to lock those behind visibility barriers
 // for all structs.
+//
+// Other ideas: a struct can only `Deref` to a single type, but it can
+// be `Borrow`ed or `AsRef`ed as multiple types. Maybe generate multiple
+// trait implementations for multiple-fielded structs? Would have to be
+// careful to avoid type collisions.
 
 #![cfg_attr(feature = "strict", deny(warnings))]
 #![recursion_limit="128"]
