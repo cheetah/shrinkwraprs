@@ -1,0 +1,20 @@
+image: rust:1.23
+
+stages:
+  - build
+  - test
+
+build-lib:
+  stage: build
+  script:
+    - cargo build --lib --features strict
+
+build-examples:
+  stage: build
+  script:
+    - cargo build --examples
+
+test:
+  stage: test
+  script:
+    - cargo test
