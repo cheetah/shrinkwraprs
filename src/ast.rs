@@ -25,7 +25,7 @@ pub struct Tuple {
 /// as the one we should deref to.
 pub struct NaryTuple {
   pub details: StructDetails,
-  pub inner_field_index: u32,
+  pub inner_field_index: syn::Index,
   pub inner_type: syn::Type
 }
 
@@ -113,10 +113,9 @@ fn is_marked(field: &syn::Field) -> bool {
 /// Only a single field, out of all a struct's fields, can be marked as
 /// the main field that we deref to. So let's find that field.
 /// We also return the 0-based number of the marked field.
-fn find_marked_field(fields: Fields) -> ((u32, syn::Field), Fields) {
+fn find_marked_field(fields: Fields) -> ((usize, syn::Field), Fields) {
   let (marked, unmarked) = fields.into_iter()
     .enumerate()
-    .map(|(i, field)| (i as u32, field))
     .partition::<Vec<_>, _>(|&(_, ref field)| is_marked(field));
   let marked_len = marked.len();
   let single: Option<(_,)> = marked.into_iter()
@@ -162,7 +161,7 @@ fn validate_tuple(details: StructDetails, fields: Fields) -> ShrinkwrapInput {
   } else {
     ShrinkwrapInput::NaryTuple(NaryTuple {
       details: details,
-      inner_field_index: marked.0,
+      inner_field_index: marked.0.into(),
       inner_type: marked.1.ty
     })
   }
