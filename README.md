@@ -3,7 +3,7 @@
 Making wrapper types allows us to give more compile-time
 guarantees about our code being correct:
 
-```ignore
+```rust
 // Now we can't mix up widths and heights; the compiler will yell at us!
 struct Width(i64);
 struct Height(i64);
