@@ -5,27 +5,32 @@
 //!
 //! ```ignore
 //! // Now we can't mix up widths and heights; the compiler will yell at us!
-//! struct Width(i64);
-//! struct Height(i64);
+//! struct Width(u64);
+//! struct Height(u64);
 //! ```
 //!
 //! But... they're kind of a pain to work with. If you ever need to get at
-//! that wrapped `i64`, you need to constantly pattern-match back and forth
+//! that wrapped `u64`, you need to constantly pattern-match back and forth
 //! to wrap and unwrap the values.
 //!
 //! `shrinkwraprs` aims to alleviate this pain by allowing you to derive
-//! implementations of various conversion traits by attaching
-//! `#[derive(Shrinkwrap)]`.
+//! implementations of various conversion traits by deriving
+//! `Shrinkwrap` and `ShrinkwrapMut`.
 //!
 //! ## Traits implemented
 //!
-//! Currently, `shrinkwraprs` derives the following traits for all structs:
+//! Currently, using `#[derive(Shrinkwrap)]` will derive the following traits
+//! for all structs:
 //!
 //! * `AsRef<InnerType>`
-//! * `AsMut<InnerType>`
 //! * `Borrow<InnerType>`
-//! * `BorrowMut<InnerType>`
 //! * `Deref<Target=InnerType>`
+//!
+//! Additionally, using `#[derive(Shrinkwrap, ShrinkwrapMut)]` will additionally
+//! derive the following traits:
+//!
+//! * `AsMut<InnerType>`
+//! * `BorrowMut<InnerType>`
 //! * `DerefMut<Target=InnerType>`
 //!
 //! ## Cool, how do I use it?
@@ -40,10 +45,39 @@
 //!   let email = Email("chiya+snacks@natsumeya.jp".into());
 //!
 //!   let is_discriminated_email =
-//!     (*email).contains("+");  // Woohoo, we can use the email like a string!
+//!     email.contains("+");  // Woohoo, we can use the email like a string!
 //!
 //!   /* ... */
 //! }
+//! ```
+//!
+//! If you have multiple fields, but there's only one field you want to be able
+//! to deref/borrow as, mark it with `#[shrinkwrap(main_field)]`:
+//!
+//! ```ignore
+//! #[derive(Shrinkwrap)]
+//! struct Email {
+//!   spamminess: f64,
+//!   #[shrinkwrap(main_field)] addr: String
+//! }
+//!
+//! #[derive(Shrinkwrap)]
+//! struct CodeSpan(u32, u32, #[shrinkwrap(main_field)] Token);
+//! ```
+//!
+//! If you also want to be able to modify the wrapped value directly,
+//! derive `ShrinkwrapMut` as well:
+//!
+//! ```ignore
+//! #[derive(Shrinkwrap, ShrinkwrapMut)]
+//! struct InputBuffer {
+//!   buffer: String
+//! }
+//!
+//! ...
+//! let mut input_buffer = /* ... */;
+//! input_buffer.push_str("some values");
+//! ...
 //! ```
 
 // We'll probably also want to implement some other conversion traits, namely
