@@ -138,24 +138,26 @@ pub fn shrinkwrap_mut(tokens: TokenStream) -> TokenStream {
 // used #[derive(Shrinkwrap)].
 
 fn impl_immut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
-  let &ast::StructDetails { ref ident, .. } = details;
+  let &ast::StructDetails { ref ident, ref generics, .. } = details;
   let &ast::Struct { ref inner_field, ref inner_type, .. } = input;
 
+  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
   quote! {
-    impl ::std::ops::Deref for #ident {
+    impl #impl_generics ::std::ops::Deref for #ident #ty_generics #where_clause {
       type Target = #inner_type;
       fn deref(&self) -> &Self::Target {
         &self.#inner_field
       }
     }
 
-    impl ::std::borrow::Borrow<#inner_type> for #ident {
+    impl #impl_generics ::std::borrow::Borrow<#inner_type> for #ident #ty_generics #where_clause {
       fn borrow(&self) -> &#inner_type {
         &self.#inner_field
       }
     }
 
-    impl ::std::convert::AsRef<#inner_type> for #ident {
+    impl #impl_generics ::std::convert::AsRef<#inner_type> for #ident #ty_generics #where_clause {
       fn as_ref(&self) -> &#inner_type {
         &self.#inner_field
       }
@@ -164,23 +166,25 @@ fn impl_immut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Toke
 }
 
 fn impl_mut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
-  let &ast::StructDetails { ref ident, .. } = details;
+  let &ast::StructDetails { ref ident, ref generics, .. } = details;
   let &ast::Struct { ref inner_field, ref inner_type, .. } = input;
 
+  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
   quote! {
-    impl ::std::ops::DerefMut for #ident {
+    impl #impl_generics ::std::ops::DerefMut for #ident #ty_generics #where_clause {
       fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.#inner_field
       }
     }
 
-    impl ::std::borrow::BorrowMut<#inner_type> for #ident {
+    impl #impl_generics ::std::borrow::BorrowMut<#inner_type> for #ident #ty_generics #where_clause {
       fn borrow_mut(&mut self) -> &mut #inner_type {
         &mut self.#inner_field
       }
     }
 
-    impl ::std::convert::AsMut<#inner_type> for #ident {
+    impl #impl_generics ::std::convert::AsMut<#inner_type> for #ident #ty_generics #where_clause {
       fn as_mut(&mut self) -> &mut #inner_type {
         &mut self.#inner_field
       }

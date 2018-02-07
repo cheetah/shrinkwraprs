@@ -13,6 +13,7 @@ type Fields = Vec<syn::Field>;
 
 pub struct StructDetails {
   pub ident: syn::Ident,
+  pub generics: syn::Generics,
   pub visibility: syn::Visibility
 }
 
@@ -33,11 +34,7 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> (StructDetails, Struct)
 
   let DeriveInput { attrs: _attrs, vis, ident, generics, data, .. } = input;
 
-  if !generics.params.is_empty() {
-    panic!("currently, shrinkwraprs does not support structs with lifetimes or generics");
-  }
-
-  let details = StructDetails { ident: ident, visibility: vis };
+  let details = StructDetails { ident: ident, visibility: vis, generics: generics };
 
   let input = match data {
     Struct(DataStruct { fields: Unnamed(FieldsUnnamed { unnamed: fields, .. }), .. }) => {
