@@ -94,6 +94,26 @@ pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
     .unwrap()
 }
 
+#[proc_macro_derive(ShrinkwrapMut, attributes(shrinkwrap))]
+pub fn shrinkwrap_mut(tokens: TokenStream) -> TokenStream {
+  use ast::{validate_derive_input, ShrinkwrapInput};
+
+  let input: syn::DeriveInput = syn::parse(tokens)
+    .unwrap();
+  let input = validate_derive_input(input);
+
+  let tokens = match input {
+    ShrinkwrapInput::Tuple(tuple) => impl_tuple_mut(tuple),
+    ShrinkwrapInput::NaryTuple(nary_tuple) => impl_nary_tuple_mut(nary_tuple),
+    ShrinkwrapInput::Single(single) => impl_single_mut(single),
+    ShrinkwrapInput::Multi(multi) => impl_multi_mut(multi)
+  };
+
+  tokens.to_string()
+    .parse()
+    .unwrap()
+}
+
 // When generating our code, we need to be careful not to leak anything we
 // don't intend to, into the surrounding code. For example, we don't use
 // imports unless they're inside a scope, because otherwise we'd be inserting
@@ -188,8 +208,6 @@ fn impl_tuple(input: ast::Tuple) -> Tokens {
 
   impl_immut_borrows(&gen_info)
     .to_tokens(&mut tokens);
-  impl_mut_borrows(&gen_info)
-    .to_tokens(&mut tokens);
 
   tokens
 }
@@ -209,8 +227,6 @@ fn impl_nary_tuple(input: ast::NaryTuple) -> Tokens {
   let mut tokens = Tokens::new();
 
   impl_immut_borrows(&gen_info)
-    .to_tokens(&mut tokens);
-  impl_mut_borrows(&gen_info)
     .to_tokens(&mut tokens);
 
   tokens
@@ -232,8 +248,6 @@ fn impl_single(input: ast::Single) -> Tokens {
 
   impl_immut_borrows(&gen_info)
     .to_tokens(&mut tokens);
-  impl_mut_borrows(&gen_info)
-    .to_tokens(&mut tokens);
 
   tokens
 }
@@ -254,6 +268,84 @@ fn impl_multi(input: ast::Multi) -> Tokens {
 
   impl_immut_borrows(&gen_info)
     .to_tokens(&mut tokens);
+
+  tokens
+}
+
+#[allow(unused_variables)]
+fn impl_tuple_mut(input: ast::Tuple) -> Tokens {
+  let ast::Tuple { details, inner_type } = input;
+  let ast::StructDetails { ident, visibility } = details;
+
+  let gen_info = GenBorrowInfo {
+    impl_prefix: quote!( impl ),
+    struct_name: quote!( #ident ),
+    inner_type: quote!( #inner_type ),
+    borrow_expr: quote!( self.0 )
+  };
+
+  let mut tokens = Tokens::new();
+
+  impl_mut_borrows(&gen_info)
+    .to_tokens(&mut tokens);
+
+  tokens
+}
+
+#[allow(unused_variables)]
+fn impl_nary_tuple_mut(input: ast::NaryTuple) -> Tokens {
+  let ast::NaryTuple { details, inner_field_index, inner_type } = input;
+  let ast::StructDetails { ident, visibility } = details;
+
+  let gen_info = GenBorrowInfo {
+    impl_prefix: quote!( impl ),
+    struct_name: quote!( #ident ),
+    inner_type: quote!( #inner_type ),
+    borrow_expr: quote!( self.#inner_field_index )
+  };
+
+  let mut tokens = Tokens::new();
+
+  impl_mut_borrows(&gen_info)
+    .to_tokens(&mut tokens);
+
+  tokens
+}
+
+#[allow(unused_variables)]
+fn impl_single_mut(input: ast::Single) -> Tokens {
+  let ast::Single { details, inner_field, inner_type, inner_visibility } = input;
+  let ast::StructDetails { ident, visibility } = details;
+
+  let gen_info = GenBorrowInfo {
+    impl_prefix: quote!( impl ),
+    struct_name: quote!( #ident ),
+    inner_type: quote!( #inner_type ),
+    borrow_expr: quote!( self.#inner_field )
+  };
+
+  let mut tokens = Tokens::new();
+
+  impl_mut_borrows(&gen_info)
+    .to_tokens(&mut tokens);
+
+  tokens
+}
+
+#[allow(unused_variables)]
+fn impl_multi_mut(input: ast::Multi) -> Tokens {
+  let ast::Multi { details, inner_field, inner_type, inner_visibility } = input;
+  let ast::StructDetails { ident, visibility } = details;
+
+  let gen_info = GenBorrowInfo {
+    impl_prefix: quote!( impl ),
+    struct_name: quote!( #ident ),
+    inner_type: quote!( #inner_type ),
+    borrow_expr: quote!( self.#inner_field )
+  };
+
+  let mut tokens = Tokens::new();
+
   impl_mut_borrows(&gen_info)
     .to_tokens(&mut tokens);
 

@@ -10,7 +10,7 @@ struct Foo(i32);
 #[derive(Shrinkwrap)]
 struct Bar(i32, #[shrinkwrap(main_field)] String);
 
-#[derive(Shrinkwrap)]
+#[derive(Shrinkwrap, ShrinkwrapMut)]
 struct Baz {
   field1: String
 }
