@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 * Added a changelog
+* Added support for structs with lifetimes and generic parameters
 
 ## [v0.1.0] -- 2018-02-06
 
