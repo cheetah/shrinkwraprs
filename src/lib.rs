@@ -152,24 +152,26 @@ pub fn shrinkwrap_mut(tokens: TokenStream) -> TokenStream {
 // used #[derive(Shrinkwrap)].
 
 fn impl_immut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
-  let &ast::StructDetails { ref ident, .. } = details;
+  let &ast::StructDetails { ref ident, ref generics, .. } = details;
   let &ast::Struct { ref inner_field, ref inner_type, .. } = input;
 
+  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
   quote! {
-    impl ::std::ops::Deref for #ident {
+    impl #impl_generics ::std::ops::Deref for #ident #ty_generics #where_clause {
       type Target = #inner_type;
       fn deref(&self) -> &Self::Target {
         &self.#inner_field
       }
     }
 
-    impl ::std::borrow::Borrow<#inner_type> for #ident {
+    impl #impl_generics ::std::borrow::Borrow<#inner_type> for #ident #ty_generics #where_clause {
       fn borrow(&self) -> &#inner_type {
         &self.#inner_field
       }
     }
 
-    impl ::std::convert::AsRef<#inner_type> for #ident {
+    impl #impl_generics ::std::convert::AsRef<#inner_type> for #ident #ty_generics #where_clause {
       fn as_ref(&self) -> &#inner_type {
         &self.#inner_field
       }
@@ -178,23 +180,25 @@ fn impl_immut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Toke
 }
 
 fn impl_mut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
-  let &ast::StructDetails { ref ident, .. } = details;
+  let &ast::StructDetails { ref ident, ref generics, .. } = details;
   let &ast::Struct { ref inner_field, ref inner_type, .. } = input;
 
+  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
   quote! {
-    impl ::std::ops::DerefMut for #ident {
+    impl #impl_generics ::std::ops::DerefMut for #ident #ty_generics #where_clause {
       fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.#inner_field
       }
     }
 
-    impl ::std::borrow::BorrowMut<#inner_type> for #ident {
+    impl #impl_generics ::std::borrow::BorrowMut<#inner_type> for #ident #ty_generics #where_clause {
       fn borrow_mut(&mut self) -> &mut #inner_type {
         &mut self.#inner_field
       }
     }
 
-    impl ::std::convert::AsMut<#inner_type> for #ident {
+    impl #impl_generics ::std::convert::AsMut<#inner_type> for #ident #ty_generics #where_clause {
       fn as_mut(&mut self) -> &mut #inner_type {
         &mut self.#inner_field
       }
@@ -203,24 +207,32 @@ fn impl_mut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens
 }
 
 fn impl_map(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
-  let &ast::StructDetails { ref ident, .. } = details;
+  let &ast::StructDetails { ref ident, ref generics, .. } = details;
   let &ast::Struct { ref inner_field, ref inner_type, ref inner_visibility } = input;
 
+  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+  // This is a *massive* hack to avoid variable capture, but I can't figure out
+  // how to get `quote` to enforce hygiene or generate a gensym.
+  let f = quote!( FFFFFFFFFFFFFFFF );
+  let t = quote!( TTTTTTTTTTTTTTTT );
+
   quote! {
-    impl #ident {
+    #[allow(dead_code)]
+    impl #impl_generics #ident #ty_generics #where_clause {
       /// Map a function over the wrapped value, consuming it in the process.
-      pub fn map<T, F: FnMut(#inner_type) -> T>(self, mut f: F) -> T {
+      pub fn map<#t, #f: FnMut(#inner_type) -> #t>(self, mut f: #f) -> #t {
         f(self.#inner_field)
       }
 
       /// Map a function over the wrapped value without consuming it.
-      pub fn map_ref<T, F: FnMut(&#inner_type) -> T>(&self, mut f: F) -> T {
+      pub fn map_ref<#t, #f: FnMut(&#inner_type) -> #t>(&self, mut f: #f) -> #t {
         f(&self.#inner_field)
       }
 
       /// Map a function over the wrapped value, potentially changing it in place.
-      #inner_visibility fn map_mut<T, F>(&mut self, mut f: F) -> T
-        where F: FnMut(&mut #inner_type) -> T
+      #inner_visibility fn map_mut<#t, #f>(&mut self, mut f: #f) -> #t
+        where #f: FnMut(&mut #inner_type) -> #t
       {
         f(&mut self.#inner_field)
       }
