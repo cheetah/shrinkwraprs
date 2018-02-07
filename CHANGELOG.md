@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+* Added a changelog
+
 ## [v0.1.0] -- 2018-02-06
 
 * Split out derivation of mutable traits (`DerefMut`, `BorrowMut`, `AsMut`) into
