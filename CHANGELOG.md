@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.1.1]
+
 * Added a changelog
 * Implemented mapping methods `map()`, `map_ref()`, `map_mut()` for
   mapping functions over wrapped values (useful for function call chaining)
