@@ -21,7 +21,7 @@ to wrap and unwrap the values.
 implementations of various conversion traits by deriving
 `Shrinkwrap` and `ShrinkwrapMut`.
 
-## Traits implemented
+## Functionality implemented
 
 Currently, using `#[derive(Shrinkwrap)]` will derive the following traits
 for all structs:
@@ -30,12 +30,20 @@ for all structs:
 * `Borrow<InnerType>`
 * `Deref<Target=InnerType>`
 
+It will also derive the following inherent methods:
+
+* `fn map<F, T>(self, mut f: F) -> T where F: FnMut(InnerType) -> T`
+* `fn map_ref<F, T>(&self, mut f: F) -> T where F: FnMut(&InnerType) -> T`
+* `fn map_mut<F, T>(&mut self, mut f: F) -> T where F: FnMut(&mut InnerType) -> T`
+
+`map_mut()` will have the same visibility as the inner field, which ensures
+that `map_mut()` doesn't leak the possibility of changing the inner value
+(potentially in invariant-violating ways). `map()` and `map_ref()` have the
+same visibility as the struct itself, since these *don't* provide direct
+ways for callers to break your data.
+
 Additionally, using `#[derive(Shrinkwrap, ShrinkwrapMut)]` will also
 derive the following traits:
-
-* `AsMut<InnerType>`
-* `BorrowMut<InnerType>`
-* `DerefMut<Target=InnerType>`
 
 ## Cool, how do I use it?
 
