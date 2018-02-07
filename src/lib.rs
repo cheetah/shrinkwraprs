@@ -207,24 +207,32 @@ fn impl_mut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens
 }
 
 fn impl_map(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
-  let &ast::StructDetails { ref ident, .. } = details;
+  let &ast::StructDetails { ref ident, ref generics, .. } = details;
   let &ast::Struct { ref inner_field, ref inner_type, ref inner_visibility } = input;
 
+  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+  // This is a *massive* hack to avoid variable capture, but I can't figure out
+  // how to get `quote` to enforce hygiene or generate a gensym.
+  let f = quote!( FFFFFFFFFFFFFFFF );
+  let t = quote!( TTTTTTTTTTTTTTTT );
+
   quote! {
-    impl #ident {
+    #[allow(dead_code)]
+    impl #impl_generics #ident #ty_generics #where_clause {
       /// Map a function over the wrapped value, consuming it in the process.
-      pub fn map<T, F: FnMut(#inner_type) -> T>(self, mut f: F) -> T {
+      pub fn map<#t, #f: FnMut(#inner_type) -> #t>(self, mut f: #f) -> #t {
         f(self.#inner_field)
       }
 
       /// Map a function over the wrapped value without consuming it.
-      pub fn map_ref<T, F: FnMut(&#inner_type) -> T>(&self, mut f: F) -> T {
+      pub fn map_ref<#t, #f: FnMut(&#inner_type) -> #t>(&self, mut f: #f) -> #t {
         f(&self.#inner_field)
       }
 
       /// Map a function over the wrapped value, potentially changing it in place.
-      #inner_visibility fn map_mut<T, F>(&mut self, mut f: F) -> T
-        where F: FnMut(&mut #inner_type) -> T
+      #inner_visibility fn map_mut<#t, #f>(&mut self, mut f: #f) -> #t
+        where #f: FnMut(&mut #inner_type) -> #t
       {
         f(&mut self.#inner_field)
       }
