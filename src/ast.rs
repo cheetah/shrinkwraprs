@@ -93,7 +93,7 @@ fn is_marked(field: &syn::Field) -> bool {
   attrs.any(|attr| {
     let meta = attr.interpret_meta();
 
-    if let Some(Meta::List(MetaList { ident, nested, ..})) = meta {
+    if let Some(Meta::List(MetaList { ident, nested, .. })) = meta {
       let nested_metas: Option<(NestedMeta,)> = nested.into_iter()
         .collect_tuple();
       let is_main_field = match nested_metas {
