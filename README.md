@@ -1,6 +1,9 @@
 # shrinkwraprs
 
 [![pipeline status](https://gitlab.com/williamyaoh/shrinkwraprs/badges/master/pipeline.svg)](https://gitlab.com/williamyaoh/shrinkwraprs/commits/master)
+[![latest version](https://img.shields.io/crates/v/shrinkwraprs.svg)](https://crates.io/crates/shrinkwraprs)
+[![api documentation](https://docs.rs/shrinkwraprs)](https://docs.rs/shrinkwraprs/badge.svg)
+[![license](https://img.shields.io/badge/license-BSD--3-ff69b4.svg)](https://gitlab.com/williamyaoh/shrinkwraprs/blob/master/LICENSE)
 
 Making wrapper types allows us to give more compile-time
 guarantees about our code being correct:
