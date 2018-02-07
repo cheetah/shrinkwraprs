@@ -2,7 +2,12 @@
 
 ## [Unreleased]
 
+## [v0.1.1] -- 2018-02-07
+
 * Added a changelog
+* Implemented mapping methods `map()`, `map_ref()`, `map_mut()` for
+  mapping functions over wrapped values (useful for function call chaining)
+* Added support for structs with lifetimes and generic parameters
 
 ## [v0.1.0] -- 2018-02-06
 
