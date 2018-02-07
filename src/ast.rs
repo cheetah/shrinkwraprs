@@ -17,21 +17,18 @@ pub struct StructDetails {
 
 /// Represents a 1-tuple struct.
 pub struct Tuple {
-  pub details: StructDetails,
   pub inner_type: syn::Type
 }
 
 /// Represents an n-tuple struct, with one of the elements designated
 /// as the one we should deref to.
 pub struct NaryTuple {
-  pub details: StructDetails,
   pub inner_field_index: syn::Index,
   pub inner_type: syn::Type
 }
 
 /// Represents a normal struct with a single named field.
 pub struct Single {
-  pub details: StructDetails,
   pub inner_field: syn::Ident,
   pub inner_type: syn::Type,
   pub inner_visibility: syn::Visibility
@@ -40,7 +37,6 @@ pub struct Single {
 /// Represents a normal struct with multiple named fields, one of which we
 /// should deref to.
 pub struct Multi {
-  pub details: StructDetails,
   pub inner_field: syn::Ident,
   pub inner_type: syn::Type,
   pub inner_visibility: syn::Visibility
@@ -53,7 +49,7 @@ pub enum ShrinkwrapInput {
   Multi(Multi)
 }
 
-pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
+pub fn validate_derive_input(input: syn::DeriveInput) -> (StructDetails, ShrinkwrapInput) {
   // Note that `unwrap()`s and `panic()`s are totally fine here, since we're
   // inside a procedural macro; panics happen at compile time
 
@@ -69,14 +65,14 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
 
   let details = StructDetails { ident: ident, visibility: vis };
 
-  match data {
+  let input = match data {
     Struct(DataStruct { fields: Unnamed(FieldsUnnamed { unnamed: fields, .. }), .. }) => {
       let fields = fields.into_iter().collect_vec();
-      validate_tuple(details, fields)
+      validate_tuple(fields)
     },
     Struct(DataStruct { fields: Named(FieldsNamed { named: fields, .. }), .. }) => {
       let fields = fields.into_iter().collect_vec();
-      validate_struct(details, fields)
+      validate_struct(fields)
     },
     Struct(..) =>
       panic!("shrinkwraprs needs a struct with at least one field!"),
@@ -84,7 +80,9 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> ShrinkwrapInput {
       panic!("shrinkwraprs does not support enums"),
     Union(..) =>
       panic!("shrinkwraprs does not support C-style unions")
-  }
+  };
+
+  (details, input)
 }
 
 fn is_marked(field: &syn::Field) -> bool {
@@ -146,7 +144,7 @@ Did you accidentally mark more than one field with #[shrinkwrap(main_field)]?");
   }
 }
 
-fn validate_tuple(details: StructDetails, fields: Fields) -> ShrinkwrapInput {
+fn validate_tuple(fields: Fields) -> ShrinkwrapInput {
   if fields.len() == 0 {
     panic!("shrinkwraprs requires tuple structs to have at least one field");
   }
@@ -155,19 +153,17 @@ fn validate_tuple(details: StructDetails, fields: Fields) -> ShrinkwrapInput {
 
   if unmarked.len() == 0 {
     ShrinkwrapInput::Tuple(Tuple {
-      details: details,
       inner_type: marked.1.ty
     })
   } else {
     ShrinkwrapInput::NaryTuple(NaryTuple {
-      details: details,
       inner_field_index: marked.0.into(),
       inner_type: marked.1.ty
     })
   }
 }
 
-fn validate_struct(details: StructDetails, fields: Fields) -> ShrinkwrapInput {
+fn validate_struct(fields: Fields) -> ShrinkwrapInput {
   if fields.len() == 0 {
     panic!("shrinkwraprs requires structs to have at least one field");
   }
@@ -180,14 +176,12 @@ fn validate_struct(details: StructDetails, fields: Fields) -> ShrinkwrapInput {
 
   if unmarked.len() == 0 {
     ShrinkwrapInput::Single(Single {
-      details: details,
       inner_field: ident,
       inner_type: ty,
       inner_visibility: vis
     })
   } else {
     ShrinkwrapInput::Multi(Multi {
-      details: details,
       inner_field: ident,
       inner_type: ty,
       inner_visibility: vis

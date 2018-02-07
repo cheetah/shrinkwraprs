@@ -114,13 +114,13 @@ pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
 
   let input: syn::DeriveInput = syn::parse(tokens)
     .unwrap();
-  let input = validate_derive_input(input);
+  let (details, input) = validate_derive_input(input);
 
   let tokens = match input {
-    ShrinkwrapInput::Tuple(tuple) => impl_tuple(tuple),
-    ShrinkwrapInput::NaryTuple(nary_tuple) => impl_nary_tuple(nary_tuple),
-    ShrinkwrapInput::Single(single) => impl_single(single),
-    ShrinkwrapInput::Multi(multi) => impl_multi(multi)
+    ShrinkwrapInput::Tuple(tuple) => impl_tuple(details, tuple),
+    ShrinkwrapInput::NaryTuple(nary_tuple) => impl_nary_tuple(details, nary_tuple),
+    ShrinkwrapInput::Single(single) => impl_single(details, single),
+    ShrinkwrapInput::Multi(multi) => impl_multi(details, multi)
   };
 
   tokens.to_string()
@@ -134,13 +134,13 @@ pub fn shrinkwrap_mut(tokens: TokenStream) -> TokenStream {
 
   let input: syn::DeriveInput = syn::parse(tokens)
     .unwrap();
-  let input = validate_derive_input(input);
+  let (details, input) = validate_derive_input(input);
 
   let tokens = match input {
-    ShrinkwrapInput::Tuple(tuple) => impl_tuple_mut(tuple),
-    ShrinkwrapInput::NaryTuple(nary_tuple) => impl_nary_tuple_mut(nary_tuple),
-    ShrinkwrapInput::Single(single) => impl_single_mut(single),
-    ShrinkwrapInput::Multi(multi) => impl_multi_mut(multi)
+    ShrinkwrapInput::Tuple(tuple) => impl_tuple_mut(details, tuple),
+    ShrinkwrapInput::NaryTuple(nary_tuple) => impl_nary_tuple_mut(details, nary_tuple),
+    ShrinkwrapInput::Single(single) => impl_single_mut(details, single),
+    ShrinkwrapInput::Multi(multi) => impl_multi_mut(details, multi)
   };
 
   tokens.to_string()
@@ -227,8 +227,8 @@ fn impl_mut_borrows(info: &GenBorrowInfo) -> Tokens {
 }
 
 #[allow(unused_variables)]
-fn impl_tuple(input: ast::Tuple) -> Tokens {
-  let ast::Tuple { details, inner_type } = input;
+fn impl_tuple(details: ast::StructDetails, input: ast::Tuple) -> Tokens {
+  let ast::Tuple { inner_type } = input;
   let ast::StructDetails { ident, visibility } = details;
 
   let gen_info = GenBorrowInfo {
@@ -247,8 +247,8 @@ fn impl_tuple(input: ast::Tuple) -> Tokens {
 }
 
 #[allow(unused_variables)]
-fn impl_nary_tuple(input: ast::NaryTuple) -> Tokens {
-  let ast::NaryTuple { details, inner_field_index, inner_type } = input;
+fn impl_nary_tuple(details: ast::StructDetails, input: ast::NaryTuple) -> Tokens {
+  let ast::NaryTuple { inner_field_index, inner_type } = input;
   let ast::StructDetails { ident, visibility } = details;
 
   let gen_info = GenBorrowInfo {
@@ -267,8 +267,8 @@ fn impl_nary_tuple(input: ast::NaryTuple) -> Tokens {
 }
 
 #[allow(unused_variables)]
-fn impl_single(input: ast::Single) -> Tokens {
-  let ast::Single { details, inner_field, inner_type, inner_visibility } = input;
+fn impl_single(details: ast::StructDetails, input: ast::Single) -> Tokens {
+  let ast::Single { inner_field, inner_type, inner_visibility } = input;
   let ast::StructDetails { ident, visibility } = details;
 
   let gen_info = GenBorrowInfo {
@@ -287,8 +287,8 @@ fn impl_single(input: ast::Single) -> Tokens {
 }
 
 #[allow(unused_variables)]
-fn impl_multi(input: ast::Multi) -> Tokens {
-  let ast::Multi { details, inner_field, inner_type, inner_visibility } = input;
+fn impl_multi(details: ast::StructDetails, input: ast::Multi) -> Tokens {
+  let ast::Multi { inner_field, inner_type, inner_visibility } = input;
   let ast::StructDetails { ident, visibility } = details;
 
   let gen_info = GenBorrowInfo {
@@ -307,8 +307,8 @@ fn impl_multi(input: ast::Multi) -> Tokens {
 }
 
 #[allow(unused_variables)]
-fn impl_tuple_mut(input: ast::Tuple) -> Tokens {
-  let ast::Tuple { details, inner_type } = input;
+fn impl_tuple_mut(details: ast::StructDetails, input: ast::Tuple) -> Tokens {
+  let ast::Tuple { inner_type } = input;
   let ast::StructDetails { ident, visibility } = details;
 
   let gen_info = GenBorrowInfo {
@@ -327,8 +327,8 @@ fn impl_tuple_mut(input: ast::Tuple) -> Tokens {
 }
 
 #[allow(unused_variables)]
-fn impl_nary_tuple_mut(input: ast::NaryTuple) -> Tokens {
-  let ast::NaryTuple { details, inner_field_index, inner_type } = input;
+fn impl_nary_tuple_mut(details: ast::StructDetails, input: ast::NaryTuple) -> Tokens {
+  let ast::NaryTuple { inner_field_index, inner_type } = input;
   let ast::StructDetails { ident, visibility } = details;
 
   let gen_info = GenBorrowInfo {
@@ -347,8 +347,8 @@ fn impl_nary_tuple_mut(input: ast::NaryTuple) -> Tokens {
 }
 
 #[allow(unused_variables)]
-fn impl_single_mut(input: ast::Single) -> Tokens {
-  let ast::Single { details, inner_field, inner_type, inner_visibility } = input;
+fn impl_single_mut(details: ast::StructDetails, input: ast::Single) -> Tokens {
+  let ast::Single { inner_field, inner_type, inner_visibility } = input;
   let ast::StructDetails { ident, visibility } = details;
 
   let gen_info = GenBorrowInfo {
@@ -367,8 +367,8 @@ fn impl_single_mut(input: ast::Single) -> Tokens {
 }
 
 #[allow(unused_variables)]
-fn impl_multi_mut(input: ast::Multi) -> Tokens {
-  let ast::Multi { details, inner_field, inner_type, inner_visibility } = input;
+fn impl_multi_mut(details: ast::StructDetails, input: ast::Multi) -> Tokens {
+  let ast::Multi { inner_field, inner_type, inner_visibility } = input;
   let ast::StructDetails { ident, visibility } = details;
 
   let gen_info = GenBorrowInfo {
