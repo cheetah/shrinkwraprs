@@ -57,12 +57,12 @@ convenient-ified:
 struct Email(String);
 
 fn main() {
-  let email = Email("chiya+snacks@natsumeya.jp".into());
+    let email = Email("chiya+snacks@natsumeya.jp".into());
 
-  let is_discriminated_email =
-    email.contains("+");  // Woohoo, we can use the email like a string!
+    let is_discriminated_email =
+        email.contains("+");  // Woohoo, we can use the email like a string!
 
-  /* ... */
+    /* ... */
 }
 ```
 
@@ -72,8 +72,8 @@ to deref/borrow as, mark it with `#[shrinkwrap(main_field)]`:
 ```rust
 #[derive(Shrinkwrap)]
 struct Email {
-  spamminess: f64,
-  #[shrinkwrap(main_field)] addr: String
+    spamminess: f64,
+    #[shrinkwrap(main_field)] addr: String
 }
 
 #[derive(Shrinkwrap)]
@@ -86,7 +86,7 @@ derive `ShrinkwrapMut` as well:
 ```rust
 #[derive(Shrinkwrap, ShrinkwrapMut)]
 struct InputBuffer {
-  buffer: String
+    buffer: String
 }
 
 ...
