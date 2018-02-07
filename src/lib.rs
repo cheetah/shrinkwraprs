@@ -17,7 +17,7 @@
 //! implementations of various conversion traits by deriving
 //! `Shrinkwrap` and `ShrinkwrapMut`.
 //!
-//! ## Traits implemented
+//! ## Functionality implemented
 //!
 //! Currently, using `#[derive(Shrinkwrap)]` will derive the following traits
 //! for all structs:
@@ -26,7 +26,19 @@
 //! * `Borrow<InnerType>`
 //! * `Deref<Target=InnerType>`
 //!
-//! Additionally, using `#[derive(Shrinkwrap, ShrinkwrapMut)]` will additionally
+//! It will also derive the following inherent methods:
+//!
+//! * `fn map<F, T>(self, mut f: F) -> T where F: FnMut(InnerType) -> T`
+//! * `fn map_ref<F, T>(&self, mut f: F) -> T where F: FnMut(&InnerType) -> T`
+//! * `fn map_mut<F, T>(&mut self, mut f: F) -> T where F: FnMut(&mut InnerType) -> T`
+//!
+//! `map_mut()` will have the same visibility as the inner field, which ensures
+//! that `map_mut()` doesn't leak the possibility of changing the inner value
+//! (potentially in invariant-violating ways). `map()` and `map_ref()` have the
+//! same visibility as the struct itself, since these *don't* provide direct
+//! ways for callers to break your data.
+//!
+//! Additionally, using `#[derive(Shrinkwrap, ShrinkwrapMut)]` will also
 //! derive the following traits:
 //!
 //! * `AsMut<InnerType>`
@@ -108,6 +120,8 @@ pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
 
   impl_immut_borrows(&details, &input)
     .to_tokens(&mut tokens);
+  impl_map(&details, &input)
+    .to_tokens(&mut tokens);
 
   tokens.to_string()
     .parse()
@@ -187,6 +201,32 @@ fn impl_mut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens
     impl #impl_generics ::std::convert::AsMut<#inner_type> for #ident #ty_generics #where_clause {
       fn as_mut(&mut self) -> &mut #inner_type {
         &mut self.#inner_field
+      }
+    }
+  }
+}
+
+fn impl_map(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
+  let &ast::StructDetails { ref ident, .. } = details;
+  let &ast::Struct { ref inner_field, ref inner_type, ref inner_visibility } = input;
+
+  quote! {
+    impl #ident {
+      /// Map a function over the wrapped value, consuming it in the process.
+      pub fn map<T, F: FnMut(#inner_type) -> T>(self, mut f: F) -> T {
+        f(self.#inner_field)
+      }
+
+      /// Map a function over the wrapped value without consuming it.
+      pub fn map_ref<T, F: FnMut(&#inner_type) -> T>(&self, mut f: F) -> T {
+        f(&self.#inner_field)
+      }
+
+      /// Map a function over the wrapped value, potentially changing it in place.
+      #inner_visibility fn map_mut<T, F>(&mut self, mut f: F) -> T
+        where F: FnMut(&mut #inner_type) -> T
+      {
+        f(&mut self.#inner_field)
       }
     }
   }
