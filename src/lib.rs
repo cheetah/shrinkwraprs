@@ -17,7 +17,7 @@
 //! implementations of various conversion traits by deriving
 //! `Shrinkwrap` and `ShrinkwrapMut`.
 //!
-//! ## Traits implemented
+//! ## Functionality implemented
 //!
 //! Currently, using `#[derive(Shrinkwrap)]` will derive the following traits
 //! for all structs:
@@ -26,7 +26,19 @@
 //! * `Borrow<InnerType>`
 //! * `Deref<Target=InnerType>`
 //!
-//! Additionally, using `#[derive(Shrinkwrap, ShrinkwrapMut)]` will additionally
+//! It will also derive the following inherent methods:
+//!
+//! * `fn map<F, T>(self, mut f: F) -> T where F: FnMut(InnerType) -> T`
+//! * `fn map_ref<F, T>(&self, mut f: F) -> T where F: FnMut(&InnerType) -> T`
+//! * `fn map_mut<F, T>(&mut self, mut f: F) -> T where F: FnMut(&mut InnerType) -> T`
+//!
+//! `map_mut()` will have the same visibility as the inner field, which ensures
+//! that `map_mut()` doesn't leak the possibility of changing the inner value
+//! (potentially in invariant-violating ways). `map()` and `map_ref()` have the
+//! same visibility as the struct itself, since these *don't* provide direct
+//! ways for callers to break your data.
+//!
+//! Additionally, using `#[derive(Shrinkwrap, ShrinkwrapMut)]` will also
 //! derive the following traits:
 //!
 //! * `AsMut<InnerType>`
@@ -80,20 +92,8 @@
 //! ...
 //! ```
 
-// We'll probably also want to implement some other conversion traits, namely
-// `From`, plus some constructors for the type itself.
-//
 // Additionally, perhaps subsume some functionality from
 // [`from_variants`](https://crates.io/crates/from_variants)?
-//
-// Note: correctness concerns arise from implementing the `Mut` traits
-// willy-nilly. Probably want to lock those behind visibility barriers
-// for all structs.
-//
-// Other ideas: a struct can only `Deref` to a single type, but it can
-// be `Borrow`ed or `AsRef`ed as multiple types. Maybe generate multiple
-// trait implementations for multiple-fielded structs? Would have to be
-// careful to avoid type collisions.
 
 #![cfg_attr(feature = "strict", deny(warnings))]
 #![recursion_limit="128"]
@@ -110,18 +110,18 @@ mod ast;
 
 #[proc_macro_derive(Shrinkwrap, attributes(shrinkwrap))]
 pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
-  use ast::{validate_derive_input, ShrinkwrapInput};
+  use ast::validate_derive_input;
 
   let input: syn::DeriveInput = syn::parse(tokens)
     .unwrap();
-  let input = validate_derive_input(input);
+  let (details, input) = validate_derive_input(input);
 
-  let tokens = match input {
-    ShrinkwrapInput::Tuple(tuple) => impl_tuple(tuple),
-    ShrinkwrapInput::NaryTuple(nary_tuple) => impl_nary_tuple(nary_tuple),
-    ShrinkwrapInput::Single(single) => impl_single(single),
-    ShrinkwrapInput::Multi(multi) => impl_multi(multi)
-  };
+  let mut tokens = Tokens::new();
+
+  impl_immut_borrows(&details, &input)
+    .to_tokens(&mut tokens);
+  impl_map(&details, &input)
+    .to_tokens(&mut tokens);
 
   tokens.to_string()
     .parse()
@@ -130,258 +130,112 @@ pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
 
 #[proc_macro_derive(ShrinkwrapMut, attributes(shrinkwrap))]
 pub fn shrinkwrap_mut(tokens: TokenStream) -> TokenStream {
-  use ast::{validate_derive_input, ShrinkwrapInput};
+  use ast::validate_derive_input;
 
   let input: syn::DeriveInput = syn::parse(tokens)
     .unwrap();
-  let input = validate_derive_input(input);
+  let (details, input) = validate_derive_input(input);
 
-  let tokens = match input {
-    ShrinkwrapInput::Tuple(tuple) => impl_tuple_mut(tuple),
-    ShrinkwrapInput::NaryTuple(nary_tuple) => impl_nary_tuple_mut(nary_tuple),
-    ShrinkwrapInput::Single(single) => impl_single_mut(single),
-    ShrinkwrapInput::Multi(multi) => impl_multi_mut(multi)
-  };
+  let mut tokens = Tokens::new();
+
+  impl_mut_borrows(&details, &input)
+    .to_tokens(&mut tokens);
 
   tokens.to_string()
     .parse()
     .unwrap()
 }
 
-// When generating our code, we need to be careful not to leak anything we
-// don't intend to, into the surrounding code. For example, we don't use
-// imports unless they're inside a scope, because otherwise we'd be inserting
-// invisible imports whenever a user used #[derive(Shrinkwrap)].
+// When generating our code, we need to be careful not to leak things into the
+// surrounding code. For example, we don't use imports unless they're inside a
+// scope, because otherwise we'd be inserting invisible imports whenever a user
+// used #[derive(Shrinkwrap)].
 
-struct GenBorrowInfo {
-  /// What should the `impl` keyword look like? `impl`, `impl<T>`, `impl<'a, T>`, etc.
-  impl_prefix: Tokens,
-  /// Should also include any generic parameters for the struct.
-  struct_name: Tokens,
-  inner_type: Tokens,
-  /// An expression that takes in `self` and *moves* the inner field as its return value.
-  borrow_expr: Tokens
-}
+fn impl_immut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
+  let &ast::StructDetails { ref ident, ref generics, .. } = details;
+  let &ast::Struct { ref inner_field, ref inner_type, .. } = input;
 
-fn impl_immut_borrows(info: &GenBorrowInfo) -> Tokens {
-  let &GenBorrowInfo {
-    ref impl_prefix,
-    ref struct_name,
-    ref inner_type,
-    ref borrow_expr
-  } = info;
+  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
   quote! {
-    #impl_prefix ::std::ops::Deref for #struct_name {
+    impl #impl_generics ::std::ops::Deref for #ident #ty_generics #where_clause {
       type Target = #inner_type;
       fn deref(&self) -> &Self::Target {
-        &#borrow_expr
+        &self.#inner_field
       }
     }
 
-    #impl_prefix ::std::borrow::Borrow<#inner_type> for #struct_name {
+    impl #impl_generics ::std::borrow::Borrow<#inner_type> for #ident #ty_generics #where_clause {
       fn borrow(&self) -> &#inner_type {
-        &#borrow_expr
+        &self.#inner_field
       }
     }
 
-    #impl_prefix ::std::convert::AsRef<#inner_type> for #struct_name {
+    impl #impl_generics ::std::convert::AsRef<#inner_type> for #ident #ty_generics #where_clause {
       fn as_ref(&self) -> &#inner_type {
-        &#borrow_expr
+        &self.#inner_field
       }
     }
   }
 }
 
-// We separate out mutable borrow traits from the immutable borrows because
-// later we might want to differ whether we implement mutable borrows based
-// on struct visibility.
+fn impl_mut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
+  let &ast::StructDetails { ref ident, ref generics, .. } = details;
+  let &ast::Struct { ref inner_field, ref inner_type, .. } = input;
 
-fn impl_mut_borrows(info: &GenBorrowInfo) -> Tokens {
-  let &GenBorrowInfo {
-    ref impl_prefix,
-    ref struct_name,
-    ref inner_type,
-    ref borrow_expr
-  } = info;
+  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
   quote! {
-    #impl_prefix ::std::ops::DerefMut for #struct_name {
+    impl #impl_generics ::std::ops::DerefMut for #ident #ty_generics #where_clause {
       fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut #borrow_expr
+        &mut self.#inner_field
       }
     }
 
-    #impl_prefix ::std::borrow::BorrowMut<#inner_type> for #struct_name {
+    impl #impl_generics ::std::borrow::BorrowMut<#inner_type> for #ident #ty_generics #where_clause {
       fn borrow_mut(&mut self) -> &mut #inner_type {
-        &mut #borrow_expr
+        &mut self.#inner_field
       }
     }
 
-    #impl_prefix ::std::convert::AsMut<#inner_type> for #struct_name {
+    impl #impl_generics ::std::convert::AsMut<#inner_type> for #ident #ty_generics #where_clause {
       fn as_mut(&mut self) -> &mut #inner_type {
-        &mut #borrow_expr
+        &mut self.#inner_field
       }
     }
   }
 }
 
-#[allow(unused_variables)]
-fn impl_tuple(input: ast::Tuple) -> Tokens {
-  let ast::Tuple { details, inner_type } = input;
-  let ast::StructDetails { ident, visibility } = details;
+fn impl_map(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
+  let &ast::StructDetails { ref ident, ref generics, .. } = details;
+  let &ast::Struct { ref inner_field, ref inner_type, ref inner_visibility } = input;
 
-  let gen_info = GenBorrowInfo {
-    impl_prefix: quote!( impl ),
-    struct_name: quote!( #ident ),
-    inner_type: quote!( #inner_type ),
-    borrow_expr: quote!( self.0 )
-  };
+  let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
-  let mut tokens = Tokens::new();
+  // This is a *massive* hack to avoid variable capture, but I can't figure out
+  // how to get `quote` to enforce hygiene or generate a gensym.
+  let f = quote!( FFFFFFFFFFFFFFFF );
+  let t = quote!( TTTTTTTTTTTTTTTT );
 
-  impl_immut_borrows(&gen_info)
-    .to_tokens(&mut tokens);
+  quote! {
+    #[allow(dead_code)]
+    impl #impl_generics #ident #ty_generics #where_clause {
+      /// Map a function over the wrapped value, consuming it in the process.
+      pub fn map<#t, #f: FnMut(#inner_type) -> #t>(self, mut f: #f) -> #t {
+        f(self.#inner_field)
+      }
 
-  tokens
-}
+      /// Map a function over the wrapped value without consuming it.
+      pub fn map_ref<#t, #f: FnMut(&#inner_type) -> #t>(&self, mut f: #f) -> #t {
+        f(&self.#inner_field)
+      }
 
-#[allow(unused_variables)]
-fn impl_nary_tuple(input: ast::NaryTuple) -> Tokens {
-  let ast::NaryTuple { details, inner_field_index, inner_type } = input;
-  let ast::StructDetails { ident, visibility } = details;
-
-  let gen_info = GenBorrowInfo {
-    impl_prefix: quote!( impl ),
-    struct_name: quote!( #ident ),
-    inner_type: quote!( #inner_type ),
-    borrow_expr: quote!( self.#inner_field_index )
-  };
-
-  let mut tokens = Tokens::new();
-
-  impl_immut_borrows(&gen_info)
-    .to_tokens(&mut tokens);
-
-  tokens
-}
-
-#[allow(unused_variables)]
-fn impl_single(input: ast::Single) -> Tokens {
-  let ast::Single { details, inner_field, inner_type, inner_visibility } = input;
-  let ast::StructDetails { ident, visibility } = details;
-
-  let gen_info = GenBorrowInfo {
-    impl_prefix: quote!( impl ),
-    struct_name: quote!( #ident ),
-    inner_type: quote!( #inner_type ),
-    borrow_expr: quote!( self.#inner_field )
-  };
-
-  let mut tokens = Tokens::new();
-
-  impl_immut_borrows(&gen_info)
-    .to_tokens(&mut tokens);
-
-  tokens
-}
-
-#[allow(unused_variables)]
-fn impl_multi(input: ast::Multi) -> Tokens {
-  let ast::Multi { details, inner_field, inner_type, inner_visibility } = input;
-  let ast::StructDetails { ident, visibility } = details;
-
-  let gen_info = GenBorrowInfo {
-    impl_prefix: quote!( impl ),
-    struct_name: quote!( #ident ),
-    inner_type: quote!( #inner_type ),
-    borrow_expr: quote!( self.#inner_field )
-  };
-
-  let mut tokens = Tokens::new();
-
-  impl_immut_borrows(&gen_info)
-    .to_tokens(&mut tokens);
-
-  tokens
-}
-
-#[allow(unused_variables)]
-fn impl_tuple_mut(input: ast::Tuple) -> Tokens {
-  let ast::Tuple { details, inner_type } = input;
-  let ast::StructDetails { ident, visibility } = details;
-
-  let gen_info = GenBorrowInfo {
-    impl_prefix: quote!( impl ),
-    struct_name: quote!( #ident ),
-    inner_type: quote!( #inner_type ),
-    borrow_expr: quote!( self.0 )
-  };
-
-  let mut tokens = Tokens::new();
-
-  impl_mut_borrows(&gen_info)
-    .to_tokens(&mut tokens);
-
-  tokens
-}
-
-#[allow(unused_variables)]
-fn impl_nary_tuple_mut(input: ast::NaryTuple) -> Tokens {
-  let ast::NaryTuple { details, inner_field_index, inner_type } = input;
-  let ast::StructDetails { ident, visibility } = details;
-
-  let gen_info = GenBorrowInfo {
-    impl_prefix: quote!( impl ),
-    struct_name: quote!( #ident ),
-    inner_type: quote!( #inner_type ),
-    borrow_expr: quote!( self.#inner_field_index )
-  };
-
-  let mut tokens = Tokens::new();
-
-  impl_mut_borrows(&gen_info)
-    .to_tokens(&mut tokens);
-
-  tokens
-}
-
-#[allow(unused_variables)]
-fn impl_single_mut(input: ast::Single) -> Tokens {
-  let ast::Single { details, inner_field, inner_type, inner_visibility } = input;
-  let ast::StructDetails { ident, visibility } = details;
-
-  let gen_info = GenBorrowInfo {
-    impl_prefix: quote!( impl ),
-    struct_name: quote!( #ident ),
-    inner_type: quote!( #inner_type ),
-    borrow_expr: quote!( self.#inner_field )
-  };
-
-  let mut tokens = Tokens::new();
-
-  impl_mut_borrows(&gen_info)
-    .to_tokens(&mut tokens);
-
-  tokens
-}
-
-#[allow(unused_variables)]
-fn impl_multi_mut(input: ast::Multi) -> Tokens {
-  let ast::Multi { details, inner_field, inner_type, inner_visibility } = input;
-  let ast::StructDetails { ident, visibility } = details;
-
-  let gen_info = GenBorrowInfo {
-    impl_prefix: quote!( impl ),
-    struct_name: quote!( #ident ),
-    inner_type: quote!( #inner_type ),
-    borrow_expr: quote!( self.#inner_field )
-  };
-
-  let mut tokens = Tokens::new();
-
-  impl_mut_borrows(&gen_info)
-    .to_tokens(&mut tokens);
-
-  tokens
+      /// Map a function over the wrapped value, potentially changing it in place.
+      #inner_visibility fn map_mut<#t, #f>(&mut self, mut f: #f) -> #t
+        where #f: FnMut(&mut #inner_type) -> #t
+      {
+        f(&mut self.#inner_field)
+      }
+    }
+  }
 }
