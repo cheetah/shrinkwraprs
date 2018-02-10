@@ -15,7 +15,7 @@
 //!
 //! `shrinkwraprs` aims to alleviate this pain by allowing you to derive
 //! implementations of various conversion traits by deriving
-//! `Shrinkwrap` and `ShrinkwrapMut`.
+//! `Shrinkwrap`.
 //!
 //! ## Functionality implemented
 //!
@@ -38,7 +38,7 @@
 //! same visibility as the struct itself, since these *don't* provide direct
 //! ways for callers to break your data.
 //!
-//! Additionally, using `#[derive(Shrinkwrap, ShrinkwrapMut)]` will also
+//! Additionally, using `#[shrinkwrap(mutable)]` will also
 //! derive the following traits:
 //!
 //! * `AsMut<InnerType>`
@@ -78,10 +78,11 @@
 //! ```
 //!
 //! If you also want to be able to modify the wrapped value directly,
-//! derive `ShrinkwrapMut` as well:
+//! add the attribute `#[shrinkwrap(mutable)]` as well:
 //!
 //! ```ignore
-//! #[derive(Shrinkwrap, ShrinkwrapMut)]
+//! #[derive(Shrinkwrap)]
+//! #[shrinkwrap(mutable)]
 //! struct InputBuffer {
 //!     buffer: String
 //! }
