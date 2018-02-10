@@ -214,11 +214,11 @@ fn impl_map(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
 
   // This is a *massive* hack to avoid variable capture, but I can't figure out
   // how to get `quote` to enforce hygiene or generate a gensym.
-  let f = quote!( FFFFFFFFFFFFFFFF );
-  let t = quote!( TTTTTTTTTTTTTTTT );
+  let f = quote!( __SHRINKWRAP_F );
+  let t = quote!( __SHRINKWRAP_T );
 
   quote! {
-    #[allow(dead_code)]
+    #[allow(dead_code, non_camel_case_types)]
     impl #impl_generics #ident #ty_generics #where_clause {
       /// Map a function over the wrapped value, consuming it in the process.
       pub fn map<#t, #f: FnMut(#inner_type) -> #t>(self, mut f: #f) -> #t {
