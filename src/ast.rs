@@ -147,18 +147,21 @@ fn find_marked_field(fields: Fields) -> ((usize, syn::Field), Fields) {
       (single.0, vec![])
     },
     _ => if marked_len == 0 {
-      panic!("halp! shrinkwraprs doesn't know which field you want this struct to convert to.
-Did you forget to mark a field with #[shrinkwrap(main_field)]?");
+      panic!("halp! shrinkwraprs doesn't know which field you want
+this struct to convert to. Did you forget to mark a
+field with #[shrinkwrap(main_field)]?");
     } else {
-      panic!("halp! shrinkwraprs doesn't know which field you want this struct to convert to.
-Did you accidentally mark more than one field with #[shrinkwrap(main_field)]?");
+      panic!("halp! shrinkwraprs doesn't know which field you want
+this struct to convert to. Did you accidentally mark
+more than one field with #[shrinkwrap(main_field)]?");
     }
   }
 }
 
 fn validate_tuple(fields: Fields) -> Struct {
   if fields.len() == 0 {
-    panic!("shrinkwraprs requires tuple structs to have at least one field");
+    panic!("shrinkwraprs requires tuple structs to have at least one
+field!");
   }
 
   let ((marked_index, marked_field), _) = find_marked_field(fields);
@@ -175,7 +178,8 @@ fn validate_tuple(fields: Fields) -> Struct {
 
 fn validate_nontuple(fields: Fields) -> Struct {
   if fields.len() == 0 {
-    panic!("shrinkwraprs requires structs to have at least one field");
+    panic!("shrinkwraprs requires structs to have at least one
+field!");
   }
 
   let ((_, marked_field), _) = find_marked_field(fields);
