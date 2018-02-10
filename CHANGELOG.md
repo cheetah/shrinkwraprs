@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+* Added visibility checking on mutable derives to help prevent deriving
+  mutable traits when inner field is less mutable than surrounding struct
+* Added `#[shrinkwrap(unsafe_ignore_visibility)]` flag to override this
+  behavior when desired.
+* Added `#[shrinkwrap(mutable)]` flag in preparation for moving away from
+  extra proc macro
+
 ## [v0.1.1]
 
 * Added a changelog
