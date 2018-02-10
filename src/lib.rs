@@ -140,24 +140,26 @@ pub fn shrinkwrap_mut(tokens: TokenStream) -> TokenStream {
     .unwrap();
   let (details, input) = validate_derive_input(input);
 
-  match field_visibility(&details.visibility, &input.inner_visibility) {
-    Restricted =>
-      panic!("shrinkwraprs: cowardly refusing to implement mutable
-conversion traits because inner field is less visible
-than shrinkwrapped struct. Implementing mutable traits
-could allow violation of struct invariants. If you'd
-like to override this, use
-#[shrinkwrap(unsafe_ignore_visibility)] on your struct."),
-    CantDetermine =>
-      panic!("shrinkwraprs: cowardly refusing to implement mutable
-conversion traits because I can't figure out whether
-the inner field is as visible as the shrinkwrapped
-struct or not. This is usually because there is a mix
-of visibilities starting at the crate root and
-visiblities starting at self/super. If you'd like to
-override this, use #[shrinkwrap(unsafe_ignore_visibility)] on
-your struct."),
-    _ => ()
+  if !details.flags.contains(ast::ShrinkwrapFlags::SW_IGNORE_VIS) {
+    match field_visibility(&details.visibility, &input.inner_visibility) {
+      Restricted =>
+        panic!("shrinkwraprs: cowardly refusing to implement mutable
+  conversion traits because inner field is less visible
+  than shrinkwrapped struct. Implementing mutable traits
+  could allow violation of struct invariants. If you'd
+  like to override this, use
+  #[shrinkwrap(unsafe_ignore_visibility)] on your struct."),
+      CantDetermine =>
+        panic!("shrinkwraprs: cowardly refusing to implement mutable
+  conversion traits because I can't figure out whether
+  the inner field is as visible as the shrinkwrapped
+  struct or not. This is usually because there is a mix
+  of visibilities starting at the crate root and
+  visiblities starting at self/super. If you'd like to
+  override this, use #[shrinkwrap(unsafe_ignore_visibility)] on
+  your struct."),
+      _ => ()
+    }
   }
 
   let mut tokens = Tokens::new();

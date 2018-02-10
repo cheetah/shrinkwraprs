@@ -20,6 +20,7 @@ bitflags! {
 }
 
 pub struct StructDetails {
+  pub flags: ShrinkwrapFlags,
   pub ident: syn::Ident,
   pub generics: syn::Generics,
   pub visibility: syn::Visibility
@@ -40,9 +41,10 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> (StructDetails, Struct)
   use syn::Data::{Struct, Enum, Union};
   use syn::Fields::{Named, Unnamed};
 
-  let DeriveInput { attrs: _attrs, vis, ident, generics, data, .. } = input;
+  let DeriveInput { attrs, vis, ident, generics, data, .. } = input;
 
-  let details = StructDetails { ident: ident, visibility: vis, generics: generics };
+  let flags = shrinkwrap_flags(&attrs);
+  let details = StructDetails { flags, ident, visibility: vis, generics };
 
   let input = match data {
     Struct(DataStruct { fields: Unnamed(FieldsUnnamed { unnamed: fields, .. }), .. }) => {
@@ -83,6 +85,25 @@ fn tagged_attrs(tag: &str, attrs: &[syn::Attribute]) -> Vec<syn::NestedMeta> {
   }
 
   result
+}
+
+fn shrinkwrap_flags(attrs: &[syn::Attribute]) -> ShrinkwrapFlags {
+  use syn::{Meta, NestedMeta};
+
+  let meta = tagged_attrs("shrinkwrap", attrs);
+  let mut flags = ShrinkwrapFlags::empty();
+
+  for attr in meta {
+    if let NestedMeta::Meta(Meta::Word(ident)) = attr {
+      if &ident == "mutable" {
+        flags |= ShrinkwrapFlags::SW_MUT;
+      } else if &ident == "unsafe_ignore_visibility" {
+        flags |= ShrinkwrapFlags::SW_IGNORE_VIS;
+      }
+    }
+  }
+
+  flags
 }
 
 fn is_marked(field: &syn::Field) -> bool {
