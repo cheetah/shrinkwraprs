@@ -122,67 +122,36 @@ mod path_convert_tests {
   use syn::{self, Visibility};
 
   use super::{PathComponent, to_path};
-
-  static VIS1: &'static str = "pub";
-  static VIS2: &'static str = "pub(crate)";
-  static VIS3: &'static str = "";
-  static VIS4: &'static str = "pub(self)";
-  static VIS5: &'static str = "pub(super)";
-  static VIS6: &'static str = "pub(in ::a::b::c)";
-  static VIS7: &'static str = "pub(in ::super::b)";
+  use super::PathComponent::*;
 
   impl<'a> From<&'a str> for PathComponent {
     fn from(input: &'a str) -> Self {
-      PathComponent::Mod(input.to_string())
+      Mod(input.to_string())
     }
   }
 
   macro_rules! vis_test {
-    ($input:ident, $($component:expr);+) => {{
-      let vis: Visibility = syn::parse_str($input)
-        .expect("path input is structured incorrectly!");
-      let vis = to_path(&vis);
+    ($test_name:ident => $input:expr; $($component:expr),+) => {
+      #[test]
+      fn $test_name() {
+        let vis: Visibility = syn::parse_str($input)
+          .expect("path input is structured incorrectly!");
+        let vis = to_path(&vis);
 
-      let expected = vec![ $($component.into()),+ ];
+        let expected = vec![ $($component.into()),+ ];
 
-      assert_eq!(&vis, &expected);
-    }}
+        assert_eq!(&vis, &expected);
+      }
+    }
   }
 
-  #[test]
-  fn test_vis1() {
-    vis_test!(VIS1, PathComponent::Pub);
-  }
-
-  #[test]
-  fn test_vis2() {
-    vis_test!(VIS2, PathComponent::Pub; PathComponent::Crate);
-  }
-
-  #[test]
-  fn test_vis3() {
-    vis_test!(VIS3, PathComponent::Inherited);
-  }
-
-  #[test]
-  fn test_vis4() {
-    vis_test!(VIS4, PathComponent::InSelf);
-  }
-
-  #[test]
-  fn test_vis5() {
-    vis_test!(VIS5, PathComponent::InSuper);
-  }
-
-  #[test]
-  fn test_vis6() {
-    vis_test!(VIS6, PathComponent::Pub; PathComponent::Crate; "a"; "b"; "c");
-  }
-
-  #[test]
-  fn test_vis7() {
-    vis_test!(VIS7, PathComponent::InSuper; "b");
-  }
+  vis_test!(vis_test1 => "pub"; Pub);
+  vis_test!(vis_test2 => "pub(crate)"; Pub, Crate);
+  vis_test!(vis_test3 => ""; Inherited);
+  vis_test!(vis_test4 => "pub(self)"; InSelf);
+  vis_test!(vis_test5 => "pub(super)"; InSuper);
+  vis_test!(vis_test6 => "pub(in ::a::b::c)"; Pub, Crate, "a", "b", "c");
+  vis_test!(vis_test7 => "pub(in ::super::b)"; InSuper, "b");
 }
 
 #[cfg(test)]
