@@ -56,23 +56,35 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> (StructDetails, Struct)
   (details, input)
 }
 
-fn is_marked(field: &syn::Field) -> bool {
-  use syn::{Meta, MetaList, NestedMeta};
+/// Specifically for working with attributes like #[shrinkwrap(..)], where
+/// a name is combined with a list of attributes. Get the list of attributes
+/// matching the tag.
+fn tagged_attrs(tag: &str, attrs: &[syn::Attribute]) -> Vec<syn::NestedMeta> {
+  use syn::{Meta, MetaList};
 
-  let mut attrs = field.attrs.iter();
+  let mut result = vec![];
 
-  attrs.any(|attr| {
+  for attr in attrs {
     let meta = attr.interpret_meta();
 
-    if let Some(Meta::List(MetaList { ident, nested, .. })) = meta {
-      let nested_metas: Option<(NestedMeta,)> = nested.into_iter()
-        .collect_tuple();
-      let is_main_field = match nested_metas {
-        Some((NestedMeta::Meta(Meta::Word(word)),)) => &word == "main_field",
-        _ => false
-      };
+    if let Some(Meta::List(MetaList { ident, nested, ..})) = meta {
+      if &ident == tag {
+        result.extend(nested);
+      }
+    }
+  }
 
-      &ident == "shrinkwrap" && is_main_field
+  result
+}
+
+fn is_marked(field: &syn::Field) -> bool {
+  use syn::{Meta, NestedMeta};
+
+  let meta = tagged_attrs("shrinkwrap", &field.attrs);
+
+  meta.into_iter().any(|meta| {
+    if let NestedMeta::Meta(Meta::Word(ident)) = meta {
+      &ident == "main_field"
     } else {
       false
     }
