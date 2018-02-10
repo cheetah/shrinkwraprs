@@ -12,16 +12,10 @@ use itertools::Itertools;
 // When checking for visibility containment, we can make use of the guarantee
 // that the langauge provides us that any visibility path must be a parent
 // module of the current one. This means, for instance, that we don't have
-// to worry about the possibility of something like `pub(in self::some_mod)`;
-// we also know that if we see a `pub(in super::some_mod)`, we can assume
-// that `some_mod` is the module that the shrinkwrapped type is in.
-//
-// This doesn't help us in degenerate cases, like one path is
-// `pub(in ::a::b::c)` and the other is `pub(super)`, and it turns out that
-// those two are the same module, but theoretically it can allow us to determine
-// more cases.
+// to worry about the possibility of the visibility paths "diverging".
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq)]
+#[cfg_attr(test, derive(Debug))]
 pub enum PathComponent {
   /// Effectively, this means private.
   Inherited,
@@ -32,6 +26,7 @@ pub enum PathComponent {
   Mod(String)
 }
 
+#[cfg_attr(test, derive(PartialEq, Debug))]
 pub enum FieldVisibility {
   /// The inner field is *at least* as visible as its containing struct.
   Visible,
@@ -41,6 +36,42 @@ pub enum FieldVisibility {
   /// paths starting at different points (e.g. one is self and the other
   /// is ::a::b::c)
   CantDetermine
+}
+
+/// Check what the relation between the given struct's visibility and the
+/// field's visibility is.
+pub fn field_visibility(struct_vis: &syn::Visibility, field_vis: &syn::Visibility) -> FieldVisibility {
+  let struct_vis = to_path(struct_vis);
+  let field_vis = to_path(field_vis);
+
+  fn check_head(struct_vis: &[PathComponent], field_vis: &[PathComponent]) -> FieldVisibility {
+    match (struct_vis.split_first(), field_vis.split_first()) {
+      (_, None)
+        | (Some((&PathComponent::Inherited, _)), _)
+        => FieldVisibility::Visible,
+      (None, _)
+        | (_, Some((&PathComponent::Inherited, _)))
+        => FieldVisibility::Restricted,
+      (Some((sh, sr)), Some((fh, fr))) => if sh == fh {
+        check_head(sr, fr)
+      } else {
+        FieldVisibility::CantDetermine
+      }
+    }
+  }
+
+  // If the field is marked `pub`, then we know it's definitely visible...
+  if &field_vis == &vec![ PathComponent::Pub ] {
+    return FieldVisibility::Visible;
+  }
+
+  // ...and if that's not the case, but the struct is marked `pub`, we know
+  // the field is definitely restricted.
+  if &struct_vis == &vec![ PathComponent::Pub ] {
+    return FieldVisibility::Restricted;
+  }
+
+  check_head(&struct_vis, &field_vis)
 }
 
 fn to_path(path: &syn::Visibility) -> Vec<PathComponent> {
@@ -152,4 +183,41 @@ mod path_convert_tests {
   fn test_vis7() {
     vis_test!(VIS7, PathComponent::InSuper; "b");
   }
+}
+
+#[cfg(test)]
+mod field_visibility_tests {
+  use syn::{self, Visibility};
+
+  use super::field_visibility;
+  use super::FieldVisibility::*;
+
+  macro_rules! field_vis_test {
+    ($test_name:ident => $struct_vis: expr; $field_vis: expr; $vis: expr) => {
+      #[test]
+      fn $test_name() {
+        let struct_vis: Visibility = syn::parse_str($struct_vis)
+          .expect("failed to parse struct visibility");
+        let field_vis: Visibility = syn::parse_str($field_vis)
+          .expect("failed to parse field visibility");
+
+        let vis = field_visibility(&struct_vis, &field_vis);
+
+        assert_eq!(vis, $vis);
+      }
+    }
+  }
+
+  field_vis_test!(test_field_vis1 => "pub"; "pub"; Visible);
+  field_vis_test!(test_field_vis2 => ""; ""; Visible);
+  field_vis_test!(test_field_vis3 => "pub(in a::b::c)"; "pub(in a::b)"; Visible);
+  field_vis_test!(test_field_vis4 => "pub(in a::b)"; "pub(in a::b::c)"; Restricted);
+  field_vis_test!(test_field_vis5 => "pub"; "pub(crate)"; Restricted);
+  field_vis_test!(test_field_vis6 => "pub(crate)"; "pub(in a::b::c)"; Restricted);
+  field_vis_test!(test_field_vis7 => "pub"; ""; Restricted);
+  field_vis_test!(test_field_vis8 => ""; "pub"; Visible);
+  field_vis_test!(test_field_vis9 => "pub(in a::b::c)"; "pub(self)"; CantDetermine);
+  field_vis_test!(test_field_vis10 => "pub(in a::b::c)"; "pub(super)"; CantDetermine);
+  field_vis_test!(test_field_vis11 => "pub"; "pub(self)"; Restricted);
+  field_vis_test!(test_field_vis12 => "pub(in a::b::c)"; "pub"; Visible);
 }
