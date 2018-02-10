@@ -107,6 +107,7 @@ use proc_macro::TokenStream;
 use quote::{Tokens, ToTokens};
 
 mod ast;
+mod visibility;
 
 #[proc_macro_derive(Shrinkwrap, attributes(shrinkwrap))]
 pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
