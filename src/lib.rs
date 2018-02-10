@@ -160,48 +160,6 @@ your struct."),
     .unwrap()
 }
 
-#[proc_macro_derive(ShrinkwrapMut, attributes(shrinkwrap))]
-pub fn shrinkwrap_mut(tokens: TokenStream) -> TokenStream {
-  use ast::validate_derive_input;
-  use visibility::field_visibility;
-  use visibility::FieldVisibility::*;
-
-  let input: syn::DeriveInput = syn::parse(tokens)
-    .unwrap();
-  let (details, input) = validate_derive_input(input);
-
-  if !details.flags.contains(ast::ShrinkwrapFlags::SW_IGNORE_VIS) {
-    match field_visibility(&details.visibility, &input.inner_visibility) {
-      Restricted =>
-        panic!("shrinkwraprs: cowardly refusing to implement mutable
-  conversion traits because inner field is less visible
-  than shrinkwrapped struct. Implementing mutable traits
-  could allow violation of struct invariants. If you'd
-  like to override this, use
-  #[shrinkwrap(unsafe_ignore_visibility)] on your struct."),
-      CantDetermine =>
-        panic!("shrinkwraprs: cowardly refusing to implement mutable
-  conversion traits because I can't figure out whether
-  the inner field is as visible as the shrinkwrapped
-  struct or not. This is usually because there is a mix
-  of visibilities starting at the crate root and
-  visiblities starting at self/super. If you'd like to
-  override this, use #[shrinkwrap(unsafe_ignore_visibility)] on
-  your struct."),
-      _ => ()
-    }
-  }
-
-  let mut tokens = Tokens::new();
-
-  impl_mut_borrows(&details, &input)
-    .to_tokens(&mut tokens);
-
-  tokens.to_string()
-    .parse()
-    .unwrap()
-}
-
 // When generating our code, we need to be careful not to leak things into the
 // surrounding code. For example, we don't use imports unless they're inside a
 // scope, because otherwise we'd be inserting invisible imports whenever a user
