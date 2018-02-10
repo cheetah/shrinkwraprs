@@ -102,6 +102,7 @@ extern crate proc_macro;
 extern crate syn;
 #[macro_use] extern crate quote;
 extern crate itertools;
+#[macro_use] extern crate bitflags;
 
 use proc_macro::TokenStream;
 use quote::{Tokens, ToTokens};

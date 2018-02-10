@@ -11,6 +11,14 @@ use itertools::Itertools;
 
 type Fields = Vec<syn::Field>;
 
+bitflags! {
+  /// Controls which code and implementations we generate.
+  pub struct ShrinkwrapFlags: u32 {
+    const SW_MUT        = 0b00000001;
+    const SW_IGNORE_VIS = 0b00000010;
+  }
+}
+
 pub struct StructDetails {
   pub ident: syn::Ident,
   pub generics: syn::Generics,
