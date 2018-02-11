@@ -9,7 +9,7 @@
 * Removed `#[derive(ShrinkwrapMut)]` proc macro; replaced with
   `#[shrinkwrap(mutable)]` attribute.
 
-## [v0.1.1]
+## [v0.1.1] -- 2018-02-07
 
 * Added a changelog
 * Implemented mapping methods `map()`, `map_ref()`, `map_mut()` for
