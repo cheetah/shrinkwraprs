@@ -87,7 +87,7 @@ fn to_path(path: &syn::Visibility) -> Vec<PathComponent> {
 
 fn to_path_restricted(path: &syn::Path) -> Vec<PathComponent> {
   let segments = path.segments.iter()
-    .map(|path_segment| path_segment.ident.to_string())
+    .map(|path_segment| &path_segment.ident)
     .collect_vec();
 
   match segments.split_first() {
