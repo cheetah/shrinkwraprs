@@ -2,18 +2,22 @@
 
 #[macro_use] extern crate shrinkwraprs;
 
-#[derive(Shrinkwrap, ShrinkwrapMut)]
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
 struct Email(String);
 
-#[derive(Shrinkwrap, ShrinkwrapMut)]
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
 struct CodeSpan(u64, u64, #[shrinkwrap(main_field)] String);
 
-#[derive(Shrinkwrap, ShrinkwrapMut)]
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
 struct PhoneNumber {
   number: String
 }
 
-#[derive(Shrinkwrap, ShrinkwrapMut)]
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
 struct FileContents {
   #[shrinkwrap(main_field)] contents: String,
   linked_inodes: u64

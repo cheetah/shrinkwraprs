@@ -10,7 +10,8 @@ struct Foo(i32);
 #[derive(Shrinkwrap)]
 struct Bar(i32, #[shrinkwrap(main_field)] String);
 
-#[derive(Shrinkwrap, ShrinkwrapMut)]
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable)]
 struct Baz {
   field1: String
 }
@@ -21,8 +22,8 @@ struct Quux {
   #[shrinkwrap(main_field)] field2: String
 }
 
-#[derive(Shrinkwrap, ShrinkwrapMut)]
-#[shrinkwrap(unsafe_ignore_visibility)]
+#[derive(Shrinkwrap)]
+#[shrinkwrap(mutable, unsafe_ignore_visibility)]
 pub struct MyStruct {
   field1: u32
 }
