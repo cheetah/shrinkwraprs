@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [v0.2.0] -- 2018-02-10
+
 * Added visibility checking on mutable derives to help prevent deriving
   mutable traits when inner field is less mutable than surrounding struct
 * Added `#[shrinkwrap(unsafe_ignore_visibility)]` flag to override this

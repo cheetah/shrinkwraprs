@@ -1,7 +1,7 @@
 [package]
 
 name = "shrinkwraprs"
-version = "0.1.1"
+version = "0.2.0"
 authors = [ "William Yao <williamyaoh@gmail.com>" ]
 description = "Auto-derive for Rust conversion traits -- make working with newtypes a breeze"
 documentation = "https://docs.rs/shrinkwraprs"
