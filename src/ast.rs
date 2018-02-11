@@ -77,7 +77,7 @@ fn tagged_attrs(tag: &str, attrs: &[syn::Attribute]) -> Vec<syn::NestedMeta> {
   for attr in attrs {
     let meta = attr.interpret_meta();
 
-    if let Some(Meta::List(MetaList { ident, nested, ..})) = meta {
+    if let Some(Meta::List(MetaList { ident, nested, .. })) = meta {
       if &ident == tag {
         result.extend(nested);
       }
