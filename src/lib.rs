@@ -102,11 +102,13 @@ extern crate proc_macro;
 extern crate syn;
 #[macro_use] extern crate quote;
 extern crate itertools;
+#[macro_use] extern crate bitflags;
 
 use proc_macro::TokenStream;
 use quote::{Tokens, ToTokens};
 
 mod ast;
+mod visibility;
 
 #[proc_macro_derive(Shrinkwrap, attributes(shrinkwrap))]
 pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
@@ -131,10 +133,34 @@ pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
 #[proc_macro_derive(ShrinkwrapMut, attributes(shrinkwrap))]
 pub fn shrinkwrap_mut(tokens: TokenStream) -> TokenStream {
   use ast::validate_derive_input;
+  use visibility::field_visibility;
+  use visibility::FieldVisibility::*;
 
   let input: syn::DeriveInput = syn::parse(tokens)
     .unwrap();
   let (details, input) = validate_derive_input(input);
+
+  if !details.flags.contains(ast::ShrinkwrapFlags::SW_IGNORE_VIS) {
+    match field_visibility(&details.visibility, &input.inner_visibility) {
+      Restricted =>
+        panic!("shrinkwraprs: cowardly refusing to implement mutable
+  conversion traits because inner field is less visible
+  than shrinkwrapped struct. Implementing mutable traits
+  could allow violation of struct invariants. If you'd
+  like to override this, use
+  #[shrinkwrap(unsafe_ignore_visibility)] on your struct."),
+      CantDetermine =>
+        panic!("shrinkwraprs: cowardly refusing to implement mutable
+  conversion traits because I can't figure out whether
+  the inner field is as visible as the shrinkwrapped
+  struct or not. This is usually because there is a mix
+  of visibilities starting at the crate root and
+  visiblities starting at self/super. If you'd like to
+  override this, use #[shrinkwrap(unsafe_ignore_visibility)] on
+  your struct."),
+      _ => ()
+    }
+  }
 
   let mut tokens = Tokens::new();
 
@@ -214,11 +240,11 @@ fn impl_map(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
 
   // This is a *massive* hack to avoid variable capture, but I can't figure out
   // how to get `quote` to enforce hygiene or generate a gensym.
-  let f = quote!( FFFFFFFFFFFFFFFF );
-  let t = quote!( TTTTTTTTTTTTTTTT );
+  let f = quote!( __SHRINKWRAP_F );
+  let t = quote!( __SHRINKWRAP_T );
 
   quote! {
-    #[allow(dead_code)]
+    #[allow(dead_code, non_camel_case_types)]
     impl #impl_generics #ident #ty_generics #where_clause {
       /// Map a function over the wrapped value, consuming it in the process.
       pub fn map<#t, #f: FnMut(#inner_type) -> #t>(self, mut f: #f) -> #t {

@@ -21,6 +21,12 @@ struct Quux {
   #[shrinkwrap(main_field)] field2: String
 }
 
+#[derive(Shrinkwrap, ShrinkwrapMut)]
+#[shrinkwrap(unsafe_ignore_visibility)]
+pub struct MyStruct {
+  field1: u32
+}
+
 fn is_commercial(b: &Baz) -> bool {
   (**b).contains(".co")
 }

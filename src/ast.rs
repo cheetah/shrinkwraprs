@@ -11,7 +11,16 @@ use itertools::Itertools;
 
 type Fields = Vec<syn::Field>;
 
+bitflags! {
+  /// Controls which code and implementations we generate.
+  pub struct ShrinkwrapFlags: u32 {
+    const SW_MUT        = 0b00000001;
+    const SW_IGNORE_VIS = 0b00000010;
+  }
+}
+
 pub struct StructDetails {
+  pub flags: ShrinkwrapFlags,
   pub ident: syn::Ident,
   pub generics: syn::Generics,
   pub visibility: syn::Visibility
@@ -32,9 +41,10 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> (StructDetails, Struct)
   use syn::Data::{Struct, Enum, Union};
   use syn::Fields::{Named, Unnamed};
 
-  let DeriveInput { attrs: _attrs, vis, ident, generics, data, .. } = input;
+  let DeriveInput { attrs, vis, ident, generics, data, .. } = input;
 
-  let details = StructDetails { ident: ident, visibility: vis, generics: generics };
+  let flags = shrinkwrap_flags(&attrs);
+  let details = StructDetails { flags, ident, visibility: vis, generics };
 
   let input = match data {
     Struct(DataStruct { fields: Unnamed(FieldsUnnamed { unnamed: fields, .. }), .. }) => {
@@ -56,23 +66,54 @@ pub fn validate_derive_input(input: syn::DeriveInput) -> (StructDetails, Struct)
   (details, input)
 }
 
-fn is_marked(field: &syn::Field) -> bool {
-  use syn::{Meta, MetaList, NestedMeta};
+/// Specifically for working with attributes like #[shrinkwrap(..)], where
+/// a name is combined with a list of attributes. Get the list of attributes
+/// matching the tag.
+fn tagged_attrs(tag: &str, attrs: &[syn::Attribute]) -> Vec<syn::NestedMeta> {
+  use syn::{Meta, MetaList};
 
-  let mut attrs = field.attrs.iter();
+  let mut result = vec![];
 
-  attrs.any(|attr| {
+  for attr in attrs {
     let meta = attr.interpret_meta();
 
     if let Some(Meta::List(MetaList { ident, nested, .. })) = meta {
-      let nested_metas: Option<(NestedMeta,)> = nested.into_iter()
-        .collect_tuple();
-      let is_main_field = match nested_metas {
-        Some((NestedMeta::Meta(Meta::Word(word)),)) => &word == "main_field",
-        _ => false
-      };
+      if &ident == tag {
+        result.extend(nested);
+      }
+    }
+  }
 
-      &ident == "shrinkwrap" && is_main_field
+  result
+}
+
+fn shrinkwrap_flags(attrs: &[syn::Attribute]) -> ShrinkwrapFlags {
+  use syn::{Meta, NestedMeta};
+
+  let meta = tagged_attrs("shrinkwrap", attrs);
+  let mut flags = ShrinkwrapFlags::empty();
+
+  for attr in meta {
+    if let NestedMeta::Meta(Meta::Word(ident)) = attr {
+      if &ident == "mutable" {
+        flags |= ShrinkwrapFlags::SW_MUT;
+      } else if &ident == "unsafe_ignore_visibility" {
+        flags |= ShrinkwrapFlags::SW_IGNORE_VIS;
+      }
+    }
+  }
+
+  flags
+}
+
+fn is_marked(field: &syn::Field) -> bool {
+  use syn::{Meta, NestedMeta};
+
+  let meta = tagged_attrs("shrinkwrap", &field.attrs);
+
+  meta.into_iter().any(|meta| {
+    if let NestedMeta::Meta(Meta::Word(ident)) = meta {
+      &ident == "main_field"
     } else {
       false
     }

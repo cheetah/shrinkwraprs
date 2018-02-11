@@ -17,6 +17,7 @@ categories = [ "rust-patterns", "development-tools" ]
 syn = { version = "0.12.10", features = [ "default", "extra-traits" ] }
 quote = "0.4.2"
 itertools = "0.7.6"
+bitflags = "1.0.1"
 
 [lib]
 
