@@ -156,9 +156,7 @@ your struct."),
       .to_tokens(&mut tokens);
   }
 
-  tokens.to_string()
-    .parse()
-    .unwrap()
+  tokens.into()
 }
 
 // When generating our code, we need to be careful not to leak things into the
