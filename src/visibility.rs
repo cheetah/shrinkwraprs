@@ -189,4 +189,8 @@ mod field_visibility_tests {
   field_vis_test!(test_field_vis10 => "pub(in a::b::c)"; "pub(super)"; CantDetermine);
   field_vis_test!(test_field_vis11 => "pub"; "pub(self)"; Restricted);
   field_vis_test!(test_field_vis12 => "pub(in a::b::c)"; "pub"; Visible);
+  field_vis_test!(test_field_vis13 => "pub(self)"; "pub(self)"; Visible);
+  field_vis_test!(test_field_vis14 => "pub(super)"; "pub(super)"; Visible);
+  field_vis_test!(test_field_vis15 => "pub(crate)"; "pub(crate)"; Visible);
+  field_vis_test!(test_field_vis16 => "pub(in a::b::c)"; "pub(in a::b::c)"; Visible);
 }
