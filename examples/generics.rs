@@ -1,4 +1,5 @@
 #[macro_use] extern crate shrinkwraprs;
+extern crate core;
 
 #[derive(Shrinkwrap)]
 pub struct Email<'a>(&'a str);

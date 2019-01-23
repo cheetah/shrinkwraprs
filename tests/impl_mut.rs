@@ -1,6 +1,7 @@
 #![allow(unused_variables, dead_code)]
 
 #[macro_use] extern crate shrinkwraprs;
+extern crate core;
 
 #[derive(Shrinkwrap)]
 #[shrinkwrap(mutable)]
