@@ -169,7 +169,7 @@ fn impl_immut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Toke
   let &ast::Struct { ref inner_field, ref inner_type, .. } = input;
 
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-  let rust = rust();
+  let rust = syn::Ident::from(RUST);
 
   quote! {
     impl #impl_generics ::#rust::ops::Deref for #ident #ty_generics #where_clause {
@@ -198,7 +198,7 @@ fn impl_mut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens
   let &ast::Struct { ref inner_field, ref inner_type, .. } = input;
 
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-  let rust = rust();
+  let rust = syn::Ident::from(RUST);
 
   quote! {
     impl #impl_generics ::#rust::ops::DerefMut for #ident #ty_generics #where_clause {
@@ -255,10 +255,7 @@ fn impl_map(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
   }
 }
 
-fn rust() -> syn::Ident {
-  if cfg!(feature = "std") {
-    syn::Ident::from("std")
-  } else {
-    syn::Ident::from("core")
-  }
-}
+#[cfg(feature = "std")]
+const RUST: &str = "std";
+#[cfg(not(feature = "std"))]
+const RUST: &str = "core";
