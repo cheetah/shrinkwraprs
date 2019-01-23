@@ -17,4 +17,5 @@ build-examples:
 test:
   stage: test
   script:
-    - cargo test
+    - cargo test # with default feature std
+    - cargo test --no-default-features # core
