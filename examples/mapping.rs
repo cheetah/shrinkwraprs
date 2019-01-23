@@ -1,9 +1,9 @@
 //! Example usages of the mapping functions.
 
+#![cfg(feature = "std")]
 #![allow(unused_variables)]
 
 #[macro_use] extern crate shrinkwraprs;
-extern crate core;
 
 #[derive(Shrinkwrap)]
 pub struct Email(String);

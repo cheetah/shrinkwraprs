@@ -1,9 +1,9 @@
 //! Showing how to use shrinkwrap for different types of structs.
 
+#![cfg(feature = "std")]
 #![allow(dead_code)]
 
 #[macro_use] extern crate shrinkwraprs;
-extern crate core;
 
 #[derive(Shrinkwrap)]
 struct Foo(i32);

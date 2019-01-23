@@ -17,5 +17,9 @@ build-examples:
 test:
   stage: test
   script:
-    - cargo test # with default feature std
-    - cargo test --no-default-features # core
+    # with default feature std
+    - cargo test
+
+    # without default feature std
+    # don’t try to build examples (rust-lang/cargo#5387)
+    - cargo test --no-default-features --lib --tests
