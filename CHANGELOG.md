@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [v0.2.1] -- 2019-01-24
+
+* Added the ability to generate `#[nostd]`-compatible code through 
+  feature flags -- thanks @dazabani!
+  
+  * The default is still to emit code that uses `std`.
+  * Use the feature flag `std` to emit `std`-compatible code, or omit
+    it to emit code that uses `core`.
+
 ## [v0.2.0] -- 2018-02-10
 
 * Added visibility checking on mutable derives to help prevent deriving
