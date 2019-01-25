@@ -56,7 +56,7 @@ First, add `shrinkwraprs` as a dependency in your `Cargo.toml`:
 ```toml
 [dependencies]
 
-shrinkwraprs = "0.2.0"
+shrinkwraprs = "0.2.1"
 ```
 
 Then, just slap a `#[derive(Shrinkwrap)]` on any structs you want
