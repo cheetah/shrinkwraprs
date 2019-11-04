@@ -97,63 +97,63 @@
 // [`from_variants`](https://crates.io/crates/from_variants)?
 
 #![cfg_attr(feature = "strict", deny(warnings))]
-#![recursion_limit="128"]
+#![recursion_limit = "128"]
 
 extern crate proc_macro;
 extern crate syn;
-#[macro_use] extern crate quote;
+#[macro_use]
+extern crate quote;
 extern crate itertools;
-#[macro_use] extern crate bitflags;
+#[macro_use]
+extern crate bitflags;
 
 use proc_macro::TokenStream;
-use quote::{Tokens, ToTokens};
+use quote::ToTokens;
 
 mod ast;
 mod visibility;
 
 #[proc_macro_derive(Shrinkwrap, attributes(shrinkwrap))]
 pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
-  use ast::{ShrinkwrapFlags, validate_derive_input};
+  use ast::{validate_derive_input, ShrinkwrapFlags};
   use visibility::field_visibility;
   use visibility::FieldVisibility::*;
 
-  let input: syn::DeriveInput = syn::parse(tokens)
-    .unwrap();
+  let input: syn::DeriveInput = syn::parse(tokens).unwrap();
   let (details, input) = validate_derive_input(input);
 
-  let mut tokens = Tokens::new();
+  let mut tokens = proc_macro2::TokenStream::new();
 
-  impl_immut_borrows(&details, &input)
-    .to_tokens(&mut tokens);
-  impl_map(&details, &input)
-    .to_tokens(&mut tokens);
+  impl_immut_borrows(&details, &input).to_tokens(&mut tokens);
+  impl_map(&details, &input).to_tokens(&mut tokens);
 
   if details.flags.contains(ShrinkwrapFlags::SW_MUT) {
     // Make sure that the inner field isn't less visible than the outer struct.
     if !details.flags.contains(ast::ShrinkwrapFlags::SW_IGNORE_VIS) {
       match field_visibility(&details.visibility, &input.inner_visibility) {
-        Restricted =>
-          panic!("shrinkwraprs: cowardly refusing to implement mutable
+        Restricted => panic!(
+          "shrinkwraprs: cowardly refusing to implement mutable
 conversion traits because inner field is less visible
 than shrinkwrapped struct. Implementing mutable traits
 could allow violation of struct invariants. If you'd
 like to override this, use
-#[shrinkwrap(unsafe_ignore_visibility)] on your struct."),
-        CantDetermine =>
-          panic!("shrinkwraprs: cowardly refusing to implement mutable
+#[shrinkwrap(unsafe_ignore_visibility)] on your struct."
+        ),
+        CantDetermine => panic!(
+          "shrinkwraprs: cowardly refusing to implement mutable
 conversion traits because I can't figure out whether
 the inner field is as visible as the shrinkwrapped
 struct or not. This is usually because there is a mix
 of visibilities starting at the crate root and
 visiblities starting at self/super. If you'd like to
 override this, use #[shrinkwrap(unsafe_ignore_visibility)] on
-your struct."),
-        _ => ()
+your struct."
+        ),
+        _ => (),
       }
     }
 
-    impl_mut_borrows(&details, &input)
-      .to_tokens(&mut tokens);
+    impl_mut_borrows(&details, &input).to_tokens(&mut tokens);
   }
 
   tokens.into()
@@ -164,12 +164,23 @@ your struct."),
 // scope, because otherwise we'd be inserting invisible imports whenever a user
 // used #[derive(Shrinkwrap)].
 
-fn impl_immut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
-  let &ast::StructDetails { ref ident, ref generics, .. } = details;
-  let &ast::Struct { ref inner_field, ref inner_type, .. } = input;
+fn impl_immut_borrows(
+  details: &ast::StructDetails,
+  input: &ast::Struct,
+) -> proc_macro2::TokenStream {
+  let &ast::StructDetails {
+    ref ident,
+    ref generics,
+    ..
+  } = details;
+  let &ast::Struct {
+    ref inner_field,
+    ref inner_type,
+    ..
+  } = input;
 
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-  let rust = syn::Ident::from(RUST);
+  let rust = proc_macro2::Ident::new(RUST, proc_macro2::Span::call_site());
 
   quote! {
     impl #impl_generics ::#rust::ops::Deref for #ident #ty_generics #where_clause {
@@ -193,12 +204,20 @@ fn impl_immut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Toke
   }
 }
 
-fn impl_mut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
-  let &ast::StructDetails { ref ident, ref generics, .. } = details;
-  let &ast::Struct { ref inner_field, ref inner_type, .. } = input;
+fn impl_mut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> proc_macro2::TokenStream {
+  let &ast::StructDetails {
+    ref ident,
+    ref generics,
+    ..
+  } = details;
+  let &ast::Struct {
+    ref inner_field,
+    ref inner_type,
+    ..
+  } = input;
 
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-  let rust = syn::Ident::from(RUST);
+  let rust = proc_macro2::Ident::new(RUST, proc_macro2::Span::call_site());
 
   quote! {
     impl #impl_generics ::#rust::ops::DerefMut for #ident #ty_generics #where_clause {
@@ -221,16 +240,24 @@ fn impl_mut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> Tokens
   }
 }
 
-fn impl_map(details: &ast::StructDetails, input: &ast::Struct) -> Tokens {
-  let &ast::StructDetails { ref ident, ref generics, .. } = details;
-  let &ast::Struct { ref inner_field, ref inner_type, ref inner_visibility } = input;
+fn impl_map(details: &ast::StructDetails, input: &ast::Struct) -> proc_macro2::TokenStream {
+  let &ast::StructDetails {
+    ref ident,
+    ref generics,
+    ..
+  } = details;
+  let &ast::Struct {
+    ref inner_field,
+    ref inner_type,
+    ref inner_visibility,
+  } = input;
 
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
   // This is a *massive* hack to avoid variable capture, but I can't figure out
   // how to get `quote` to enforce hygiene or generate a gensym.
-  let f = quote!( __SHRINKWRAP_F );
-  let t = quote!( __SHRINKWRAP_T );
+  let f = quote!(__SHRINKWRAP_F);
+  let t = quote!(__SHRINKWRAP_T);
 
   quote! {
     #[allow(dead_code, non_camel_case_types)]

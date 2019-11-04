@@ -5,7 +5,6 @@
 //! specific to our crate if it's valid.
 
 use syn;
-use quote;
 
 use itertools::Itertools;
 
@@ -23,44 +22,61 @@ pub struct StructDetails {
   pub flags: ShrinkwrapFlags,
   pub ident: syn::Ident,
   pub generics: syn::Generics,
-  pub visibility: syn::Visibility
+  pub visibility: syn::Visibility,
 }
 
 /// Represents either a tuple or bracketed struct with at least one field.
 pub struct Struct {
-  pub inner_field: quote::Tokens,
+  pub inner_field: proc_macro2::TokenStream,
   pub inner_type: syn::Type,
-  pub inner_visibility: syn::Visibility
+  pub inner_visibility: syn::Visibility,
 }
 
 pub fn validate_derive_input(input: syn::DeriveInput) -> (StructDetails, Struct) {
   // Note that `unwrap()`s and `panic()`s are totally fine here; since we're
   // inside a procedural macro, panics happen at compile time
 
-  use syn::{DeriveInput, DataStruct, FieldsUnnamed, FieldsNamed};
-  use syn::Data::{Struct, Enum, Union};
+  use syn::Data::{Enum, Struct, Union};
   use syn::Fields::{Named, Unnamed};
+  use syn::{DataStruct, DeriveInput, FieldsNamed, FieldsUnnamed};
 
-  let DeriveInput { attrs, vis, ident, generics, data, .. } = input;
+  let DeriveInput {
+    attrs,
+    vis,
+    ident,
+    generics,
+    data,
+    ..
+  } = input;
 
   let flags = shrinkwrap_flags(&attrs);
-  let details = StructDetails { flags, ident, visibility: vis, generics };
+  let details = StructDetails {
+    flags,
+    ident,
+    visibility: vis,
+    generics,
+  };
 
   let input = match data {
-    Struct(DataStruct { fields: Unnamed(FieldsUnnamed { unnamed: fields, .. }), .. }) => {
+    Struct(DataStruct {
+      fields: Unnamed(FieldsUnnamed {
+        unnamed: fields, ..
+      }),
+      ..
+    }) => {
       let fields = fields.into_iter().collect_vec();
       validate_tuple(fields)
-    },
-    Struct(DataStruct { fields: Named(FieldsNamed { named: fields, .. }), .. }) => {
+    }
+    Struct(DataStruct {
+      fields: Named(FieldsNamed { named: fields, .. }),
+      ..
+    }) => {
       let fields = fields.into_iter().collect_vec();
       validate_nontuple(fields)
-    },
-    Struct(..) =>
-      panic!("shrinkwraprs needs a struct with at least one field!"),
-    Enum(..) =>
-      panic!("shrinkwraprs does not support enums"),
-    Union(..) =>
-      panic!("shrinkwraprs does not support C-style unions")
+    }
+    Struct(..) => panic!("shrinkwraprs needs a struct with at least one field!"),
+    Enum(..) => panic!("shrinkwraprs does not support enums"),
+    Union(..) => panic!("shrinkwraprs does not support C-style unions"),
   };
 
   (details, input)
@@ -75,10 +91,12 @@ fn tagged_attrs(tag: &str, attrs: &[syn::Attribute]) -> Vec<syn::NestedMeta> {
   let mut result = vec![];
 
   for attr in attrs {
-    let meta = attr.interpret_meta();
+    let meta = attr
+      .parse_meta()
+      .expect("shrinkwraprs failed to parse attribute meta");
 
-    if let Some(Meta::List(MetaList { ident, nested, .. })) = meta {
-      if &ident == tag {
+    if let Meta::List(MetaList { path, nested, .. }) = meta {
+      if path.is_ident(tag) {
         result.extend(nested);
       }
     }
@@ -94,10 +112,10 @@ fn shrinkwrap_flags(attrs: &[syn::Attribute]) -> ShrinkwrapFlags {
   let mut flags = ShrinkwrapFlags::empty();
 
   for attr in meta {
-    if let NestedMeta::Meta(Meta::Word(ident)) = attr {
-      if &ident == "mutable" {
+    if let NestedMeta::Meta(Meta::Path(path)) = attr {
+      if path.is_ident("mutable") {
         flags |= ShrinkwrapFlags::SW_MUT;
-      } else if &ident == "unsafe_ignore_visibility" {
+      } else if path.is_ident("unsafe_ignore_visibility") {
         flags |= ShrinkwrapFlags::SW_IGNORE_VIS;
       }
     }
@@ -112,8 +130,8 @@ fn is_marked(field: &syn::Field) -> bool {
   let meta = tagged_attrs("shrinkwrap", &field.attrs);
 
   meta.into_iter().any(|meta| {
-    if let NestedMeta::Meta(Meta::Word(ident)) = meta {
-      &ident == "main_field"
+    if let NestedMeta::Meta(Meta::Path(path)) = meta {
+      path.is_ident("main_field")
     } else {
       false
     }
@@ -124,44 +142,48 @@ fn is_marked(field: &syn::Field) -> bool {
 /// the main field that we deref to. So let's find that field.
 /// We also return the 0-based number of the marked field.
 fn find_marked_field(fields: Fields) -> ((usize, syn::Field), Fields) {
-  let (marked, unmarked) = fields.into_iter()
+  let (marked, unmarked) = fields
+    .into_iter()
     .enumerate()
     .partition::<Vec<_>, _>(|&(_, ref field)| is_marked(field));
   let marked_len = marked.len();
-  let single: Option<(_,)> = marked.into_iter()
-    .collect_tuple();
+  let single: Option<(_,)> = marked.into_iter().collect_tuple();
 
   match (single, unmarked.len()) {
     (Some((field,)), _) => {
-      let unmarked = unmarked.into_iter()
-        .map(|(_, field)| field)
-        .collect_vec();
+      let unmarked = unmarked.into_iter().map(|(_, field)| field).collect_vec();
 
       (field, unmarked)
     }
     (None, 1) => {
-      let single: (_,) = unmarked.into_iter()
-        .collect_tuple()
-        .unwrap();
+      let single: (_,) = unmarked.into_iter().collect_tuple().unwrap();
 
       (single.0, vec![])
-    },
-    _ => if marked_len == 0 {
-      panic!("halp! shrinkwraprs doesn't know which field you want
+    }
+    _ => {
+      if marked_len == 0 {
+        panic!(
+          "halp! shrinkwraprs doesn't know which field you want
 this struct to convert to. Did you forget to mark a
-field with #[shrinkwrap(main_field)]?");
-    } else {
-      panic!("halp! shrinkwraprs doesn't know which field you want
+field with #[shrinkwrap(main_field)]?"
+        );
+      } else {
+        panic!(
+          "halp! shrinkwraprs doesn't know which field you want
 this struct to convert to. Did you accidentally mark
-more than one field with #[shrinkwrap(main_field)]?");
+more than one field with #[shrinkwrap(main_field)]?"
+        );
+      }
     }
   }
 }
 
 fn validate_tuple(fields: Fields) -> Struct {
   if fields.len() == 0 {
-    panic!("shrinkwraprs requires tuple structs to have at least one
-field!");
+    panic!(
+      "shrinkwraprs requires tuple structs to have at least one
+field!"
+    );
   }
 
   let ((marked_index, marked_field), _) = find_marked_field(fields);
@@ -172,33 +194,34 @@ field!");
   Struct {
     inner_field: quote!( #index ),
     inner_type: ty,
-    inner_visibility: vis
+    inner_visibility: vis,
   }
 }
 
 fn validate_nontuple(fields: Fields) -> Struct {
   if fields.len() == 0 {
-    panic!("shrinkwraprs requires structs to have at least one
-field!");
+    panic!(
+      "shrinkwraprs requires structs to have at least one
+field!"
+    );
   }
 
   let ((_, marked_field), _) = find_marked_field(fields);
-  let ident = marked_field.ident
-    .unwrap();
+  let ident = marked_field.ident.unwrap();
   let ty = marked_field.ty;
   let vis = marked_field.vis;
 
   Struct {
     inner_field: quote!( #ident ),
     inner_type: ty,
-    inner_visibility: vis
+    inner_visibility: vis,
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use syn;
   use itertools::Itertools;
+  use syn;
 
   use super::*;
 
@@ -212,22 +235,17 @@ mod tests {
       }
     ";
 
-    let strct: syn::DeriveInput = syn::parse_str(input)
-      .unwrap();
+    let strct: syn::DeriveInput = syn::parse_str(input).unwrap();
 
     match strct.data {
       syn::Data::Struct(syn::DataStruct { fields, .. }) => {
-        let marked = fields.into_iter()
-          .filter(|field| is_marked(field));
-        let field: (&syn::Field,) = marked
-          .collect_tuple()
-          .unwrap();
-        let ident = field.0.ident
-          .unwrap();
+        let marked = fields.into_iter().filter(|field| is_marked(field));
+        let field: (syn::Field,) = marked.collect_tuple().unwrap();
+        let ident = field.0.ident.unwrap();
 
         assert_eq!(&ident, "field2");
-      },
-      _ => panic!()
+      }
+      _ => panic!(),
     }
   }
 
@@ -240,17 +258,17 @@ mod tests {
       }
     ";
 
-    let strct: syn::DeriveInput = syn::parse_str(input)
-      .unwrap();
+    let strct: syn::DeriveInput = syn::parse_str(input).unwrap();
 
     match strct.data {
       syn::Data::Struct(syn::DataStruct { fields, .. }) => {
-        let marked = fields.into_iter()
+        let marked = fields
+          .into_iter()
           .filter(|field| is_marked(field))
           .collect_vec();
         assert_eq!(marked.len(), 0);
-      },
-      _ => panic!()
+      }
+      _ => panic!(),
     }
   }
 }
