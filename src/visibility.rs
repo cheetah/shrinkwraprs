@@ -23,7 +23,7 @@ pub enum PathComponent {
   Crate,
   InSelf,
   InSuper,
-  Mod(String)
+  Mod(String),
 }
 
 #[cfg_attr(test, derive(PartialEq, Debug))]
@@ -35,39 +35,40 @@ pub enum FieldVisibility {
   /// We can't figure out how the visibilities relate, probably due to the
   /// paths starting at different points (e.g. one is self and the other
   /// is ::a::b::c)
-  CantDetermine
+  CantDetermine,
 }
 
 /// Check what the relation between the given struct's visibility and the
 /// field's visibility is.
-pub fn field_visibility(struct_vis: &syn::Visibility, field_vis: &syn::Visibility) -> FieldVisibility {
+pub fn field_visibility(
+  struct_vis: &syn::Visibility,
+  field_vis: &syn::Visibility,
+) -> FieldVisibility {
   let struct_vis = to_path(struct_vis);
   let field_vis = to_path(field_vis);
 
   fn check_head(struct_vis: &[PathComponent], field_vis: &[PathComponent]) -> FieldVisibility {
     match (struct_vis.split_first(), field_vis.split_first()) {
-      (_, None)
-        | (Some((&PathComponent::Inherited, _)), _)
-        => FieldVisibility::Visible,
-      (None, _)
-        | (_, Some((&PathComponent::Inherited, _)))
-        => FieldVisibility::Restricted,
-      (Some((sh, sr)), Some((fh, fr))) => if sh == fh {
-        check_head(sr, fr)
-      } else {
-        FieldVisibility::CantDetermine
+      (_, None) | (Some((&PathComponent::Inherited, _)), _) => FieldVisibility::Visible,
+      (None, _) | (_, Some((&PathComponent::Inherited, _))) => FieldVisibility::Restricted,
+      (Some((sh, sr)), Some((fh, fr))) => {
+        if sh == fh {
+          check_head(sr, fr)
+        } else {
+          FieldVisibility::CantDetermine
+        }
       }
     }
   }
 
   // If the field is marked `pub`, then we know it's definitely visible...
-  if &field_vis == &vec![ PathComponent::Pub ] {
+  if &field_vis == &vec![PathComponent::Pub] {
     return FieldVisibility::Visible;
   }
 
   // ...and if that's not the case, but the struct is marked `pub`, we know
   // the field is definitely restricted.
-  if &struct_vis == &vec![ PathComponent::Pub ] {
+  if &struct_vis == &vec![PathComponent::Pub] {
     return FieldVisibility::Restricted;
   }
 
@@ -78,15 +79,17 @@ fn to_path(path: &syn::Visibility) -> Vec<PathComponent> {
   use syn::Visibility::*;
 
   match path {
-    &Public(..) => vec![ PathComponent::Pub ],
-    &Crate(..) => vec![ PathComponent::Pub, PathComponent::Crate ],
-    &Inherited => vec![ PathComponent::Inherited ],
-    &Restricted(ref vis) => to_path_restricted(&vis.path)
+    &Public(..) => vec![PathComponent::Pub],
+    &Crate(..) => vec![PathComponent::Pub, PathComponent::Crate],
+    &Inherited => vec![PathComponent::Inherited],
+    &Restricted(ref vis) => to_path_restricted(&vis.path),
   }
 }
 
 fn to_path_restricted(path: &syn::Path) -> Vec<PathComponent> {
-  let segments = path.segments.iter()
+  let segments = path
+    .segments
+    .iter()
     .map(|path_segment| &path_segment.ident)
     .collect_vec();
 
@@ -96,16 +99,21 @@ fn to_path_restricted(path: &syn::Path) -> Vec<PathComponent> {
       let mut result;
 
       if *ident == "self" {
-        result = vec![ PathComponent::InSelf ];
+        result = vec![PathComponent::InSelf];
       } else if *ident == "super" {
-        result = vec![ PathComponent::InSuper ];
+        result = vec![PathComponent::InSuper];
       } else {
         // We add these components in non-self/super paths to allow us to
         // match them up with visibilities like `pub` and `pub(crate)`.
-        result = vec![ PathComponent::Pub, PathComponent::Crate, PathComponent::Mod(ident.to_string()) ];
+        result = vec![
+          PathComponent::Pub,
+          PathComponent::Crate,
+          PathComponent::Mod(ident.to_string()),
+        ];
       }
 
-      let rest = rest.iter()
+      let rest = rest
+        .iter()
         .map(|ident| PathComponent::Mod(ident.to_string()));
 
       result.extend(rest);
@@ -121,8 +129,8 @@ mod path_convert_tests {
 
   use syn::{self, Visibility};
 
-  use super::{PathComponent, to_path};
   use super::PathComponent::*;
+  use super::{to_path, PathComponent};
 
   impl<'a> From<&'a str> for PathComponent {
     fn from(input: &'a str) -> Self {
@@ -146,7 +154,7 @@ mod path_convert_tests {
   }
 
   vis_test!(vis_test1 => "pub"; Pub);
-  vis_test!(vis_test2 => "pub(crate)"; Pub, Crate);
+  vis_test!(vis_test2 => "pub(crate)"; Pub, Crate, Mod(String::from("crate")));
   vis_test!(vis_test3 => ""; Inherited);
   vis_test!(vis_test4 => "pub(self)"; InSelf);
   vis_test!(vis_test5 => "pub(super)"; InSuper);
@@ -165,16 +173,16 @@ mod field_visibility_tests {
     ($test_name:ident => $struct_vis: expr; $field_vis: expr; $vis: expr) => {
       #[test]
       fn $test_name() {
-        let struct_vis: Visibility = syn::parse_str($struct_vis)
-          .expect("failed to parse struct visibility");
-        let field_vis: Visibility = syn::parse_str($field_vis)
-          .expect("failed to parse field visibility");
+        let struct_vis: Visibility =
+          syn::parse_str($struct_vis).expect("failed to parse struct visibility");
+        let field_vis: Visibility =
+          syn::parse_str($field_vis).expect("failed to parse field visibility");
 
         let vis = field_visibility(&struct_vis, &field_vis);
 
         assert_eq!(vis, $vis);
       }
-    }
+    };
   }
 
   field_vis_test!(test_field_vis1 => "pub"; "pub"; Visible);
@@ -182,7 +190,7 @@ mod field_visibility_tests {
   field_vis_test!(test_field_vis3 => "pub(in a::b::c)"; "pub(in a::b)"; Visible);
   field_vis_test!(test_field_vis4 => "pub(in a::b)"; "pub(in a::b::c)"; Restricted);
   field_vis_test!(test_field_vis5 => "pub"; "pub(crate)"; Restricted);
-  field_vis_test!(test_field_vis6 => "pub(crate)"; "pub(in a::b::c)"; Restricted);
+  field_vis_test!(test_field_vis6 => "pub(crate)"; "pub(in a::b::c)"; CantDetermine);
   field_vis_test!(test_field_vis7 => "pub"; ""; Restricted);
   field_vis_test!(test_field_vis8 => ""; "pub"; Visible);
   field_vis_test!(test_field_vis9 => "pub(in a::b::c)"; "pub(self)"; CantDetermine);

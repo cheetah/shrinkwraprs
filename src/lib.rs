@@ -115,9 +115,9 @@ mod visibility;
 
 #[proc_macro_derive(Shrinkwrap, attributes(shrinkwrap))]
 pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
-  use ast::{validate_derive_input, ShrinkwrapFlags};
-  use visibility::field_visibility;
-  use visibility::FieldVisibility::*;
+  use crate::ast::{validate_derive_input, ShrinkwrapFlags};
+  use crate::visibility::field_visibility;
+  use crate::visibility::FieldVisibility::*;
 
   let input: syn::DeriveInput = syn::parse(tokens).unwrap();
   let (details, input) = validate_derive_input(input);
