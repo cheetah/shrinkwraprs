@@ -3,7 +3,8 @@
 #![cfg(feature = "std")]
 #![allow(unused_variables)]
 
-#[macro_use] extern crate shrinkwraprs;
+#[macro_use]
+extern crate shrinkwraprs;
 
 #[derive(Shrinkwrap)]
 pub struct Email(String);

@@ -1,6 +1,7 @@
 #![allow(unused_variables, dead_code)]
 
-#[macro_use] extern crate shrinkwraprs;
+#[macro_use]
+extern crate shrinkwraprs;
 extern crate core;
 
 #[derive(Shrinkwrap)]
@@ -11,13 +12,14 @@ struct CodeSpan(u64, u64, #[shrinkwrap(main_field)] String);
 
 #[derive(Shrinkwrap)]
 struct PhoneNumber {
-  number: String
+  number: String,
 }
 
 #[derive(Shrinkwrap)]
 struct FileContents {
-  #[shrinkwrap(main_field)] contents: String,
-  linked_inodes: u64
+  #[shrinkwrap(main_field)]
+  contents: String,
+  linked_inodes: u64,
 }
 
 #[test]
@@ -37,7 +39,7 @@ fn test_nary_tuple_can_deref() {
 #[test]
 fn test_single_can_deref() {
   let number = PhoneNumber {
-    number: "+1 (800) 273-8255".into()
+    number: "+1 (800) 273-8255".into(),
   };
   let is_collect_call = number.contains("(800)");
 
@@ -48,7 +50,7 @@ fn test_single_can_deref() {
 fn test_multi_can_deref() {
   let contents = FileContents {
     contents: "fjkfdlsjfkdlsjflks".into(),
-    linked_inodes: 3
+    linked_inodes: 3,
   };
 
   assert!(contents.len() > 0);
