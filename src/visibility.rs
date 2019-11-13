@@ -102,6 +102,8 @@ fn to_path_restricted(path: &syn::Path) -> Vec<PathComponent> {
         result = vec![PathComponent::InSelf];
       } else if *ident == "super" {
         result = vec![PathComponent::InSuper];
+      } else if *ident == "crate" {
+        result = vec![PathComponent::Pub, PathComponent::Crate];
       } else {
         // We add these components in non-self/super paths to allow us to
         // match them up with visibilities like `pub` and `pub(crate)`.
@@ -154,7 +156,7 @@ mod path_convert_tests {
   }
 
   vis_test!(vis_test1 => "pub"; Pub);
-  vis_test!(vis_test2 => "pub(crate)"; Pub, Crate, Mod(String::from("crate")));
+  vis_test!(vis_test2 => "pub(crate)"; Pub, Crate);
   vis_test!(vis_test3 => ""; Inherited);
   vis_test!(vis_test4 => "pub(self)"; InSelf);
   vis_test!(vis_test5 => "pub(super)"; InSuper);
@@ -190,7 +192,7 @@ mod field_visibility_tests {
   field_vis_test!(test_field_vis3 => "pub(in a::b::c)"; "pub(in a::b)"; Visible);
   field_vis_test!(test_field_vis4 => "pub(in a::b)"; "pub(in a::b::c)"; Restricted);
   field_vis_test!(test_field_vis5 => "pub"; "pub(crate)"; Restricted);
-  field_vis_test!(test_field_vis6 => "pub(crate)"; "pub(in a::b::c)"; CantDetermine);
+  field_vis_test!(test_field_vis6 => "pub(crate)"; "pub(in a::b::c)"; Restricted);
   field_vis_test!(test_field_vis7 => "pub"; ""; Restricted);
   field_vis_test!(test_field_vis8 => ""; "pub"; Visible);
   field_vis_test!(test_field_vis9 => "pub(in a::b::c)"; "pub(self)"; CantDetermine);

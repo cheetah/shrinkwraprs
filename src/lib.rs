@@ -100,6 +100,7 @@
 #![recursion_limit = "128"]
 
 extern crate proc_macro;
+extern crate proc_macro2;
 extern crate syn;
 #[macro_use]
 extern crate quote;
@@ -107,14 +108,14 @@ extern crate itertools;
 #[macro_use]
 extern crate bitflags;
 
-use proc_macro::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::ToTokens;
 
 mod ast;
 mod visibility;
 
 #[proc_macro_derive(Shrinkwrap, attributes(shrinkwrap))]
-pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
+pub fn shrinkwrap(tokens: proc_macro::TokenStream) -> proc_macro::TokenStream {
   use crate::ast::{validate_derive_input, ShrinkwrapFlags};
   use crate::visibility::field_visibility;
   use crate::visibility::FieldVisibility::*;
@@ -122,7 +123,7 @@ pub fn shrinkwrap(tokens: TokenStream) -> TokenStream {
   let input: syn::DeriveInput = syn::parse(tokens).unwrap();
   let (details, input) = validate_derive_input(input);
 
-  let mut tokens = proc_macro2::TokenStream::new();
+  let mut tokens = TokenStream::new();
 
   impl_immut_borrows(&details, &input).to_tokens(&mut tokens);
   impl_map(&details, &input).to_tokens(&mut tokens);
@@ -180,7 +181,7 @@ fn impl_immut_borrows(
   } = input;
 
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-  let rust = proc_macro2::Ident::new(RUST, proc_macro2::Span::call_site());
+  let rust = syn::Ident::new(RUST, Span::call_site());
 
   quote! {
     impl #impl_generics ::#rust::ops::Deref for #ident #ty_generics #where_clause {
@@ -217,7 +218,7 @@ fn impl_mut_borrows(details: &ast::StructDetails, input: &ast::Struct) -> proc_m
   } = input;
 
   let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-  let rust = proc_macro2::Ident::new(RUST, proc_macro2::Span::call_site());
+  let rust = syn::Ident::new(RUST, Span::call_site());
 
   quote! {
     impl #impl_generics ::#rust::ops::DerefMut for #ident #ty_generics #where_clause {
